@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banner Constructor</title>
+    <style>
+        @font-face {
+            font-family: 'Noto Sans Armenian';
+            src: url('NotoSansArmenian-VariableFont_wdth,wght.ttf') format('truetype');
+            font-weight: 400 700;
+            font-style: normal;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: clamp(12px, 1.2vw, 18px);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            padding: clamp(1rem, 3vw, 2rem);
+        }
+
+        .container {
+            max-width: 95vw;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: clamp(1.5rem, 3.5vw, 2.25rem);
+            display: flex;
+            align-items: center;
+            gap: clamp(0.75rem, 1.5vw, 1.25rem);
+        }
+
+        header img.header-logo {
+            height: clamp(1.75rem, 3.5vw, 2.5rem);
+            width: auto;
+        }
+
+        .header-text h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            margin-bottom: 0.25rem;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .header-desc {
+            color: #999;
+            font-size: clamp(0.75rem, 1.5vw, 1rem);
+        }
+
+        /* Template tabs */
+        .template-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(0.5rem, 1vw, 0.75rem);
+            margin-bottom: clamp(1.5rem, 3.5vw, 2.25rem);
+        }
+
+        .template-tab {
+            padding: clamp(0.6rem, 1.3vw, 0.85rem) clamp(1.1rem, 2vw, 1.5rem);
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: clamp(6px, 1.5vw, 8px);
+            color: #999;
+            font-weight: 600;
+            font-size: clamp(0.8rem, 1.3vw, 1rem);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-tab:hover {
+            border-color: #fc4c0f;
+            color: #fff;
+        }
+
+        .template-tab.active {
+            background: #fc4c0f;
+            border-color: #fc4c0f;
+            color: #fff;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: clamp(300px, 35vw, 450px) 1fr;
+            gap: clamp(2rem, 4vw, 3rem);
+            margin-bottom: clamp(2rem, 5vw, 3rem);
+        }
+
+        .controls {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: clamp(8px, 2vw, 12px);
+            padding: clamp(1rem, 3vw, 2rem);
+            height: fit-content;
+            position: sticky;
+            top: clamp(1rem, 3vw, 2rem);
+        }
+
+        .control-panel {
+            display: none;
+        }
+
+        .control-panel.active {
+            display: block;
+        }
+
+        .control-section {
+            margin-bottom: clamp(1.5rem, 3vw, 2rem);
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: block;
+            font-size: clamp(0.7rem, 1.2vw, 0.85rem);
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.5px;
+        }
+
+        .control-hint {
+            display: block;
+            font-size: clamp(0.65rem, 1.05vw, 0.75rem);
+            color: #666;
+            margin-top: 0.4rem;
+        }
+
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: clamp(0.75rem, 1.5vw, 1rem);
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: clamp(6px, 1.5vw, 8px);
+            color: #fff;
+            font-family: inherit;
+            font-size: clamp(0.85rem, 1.3vw, 1rem);
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #fc4c0f;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: clamp(60px, 10vh, 100px);
+            font-size: clamp(0.8rem, 1.2vw, 1rem);
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(0.5rem, 1.2vw, 0.75rem);
+        }
+
+        .button-group button {
+            min-width: clamp(90px, 20vw, 140px);
+        }
+
+        button {
+            flex: 1;
+            padding: clamp(0.7rem, 1.5vw, 1rem) clamp(0.85rem, 1.7vw, 1.15rem);
+            background: #fc4c0f;
+            border: none;
+            border-radius: clamp(6px, 1.5vw, 8px);
+            color: white;
+            font-weight: 600;
+            font-size: clamp(0.8rem, 1.3vw, 1rem);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(252, 76, 15, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #2a2a2a;
+            color: #fff;
+        }
+
+        .btn-add {
+            flex: none;
+            width: clamp(2.6rem, 5vw, 3.2rem);
+            font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+            line-height: 1;
+        }
+
+        /* Saved banners (batch download) */
+        .saved-section {
+            margin-top: clamp(1.5rem, 3vw, 2rem);
+        }
+
+        .saved-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: clamp(0.75rem, 1.5vw, 1rem);
+        }
+
+        .saved-header .preview-title {
+            margin-bottom: 0;
+        }
+
+        .btn-download-all {
+            flex: none;
+            padding: clamp(0.5rem, 1.2vw, 0.7rem) clamp(0.9rem, 1.6vw, 1.2rem);
+            font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+            display: none;
+        }
+
+        .saved-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.5rem, 1.2vw, 0.75rem);
+        }
+
+        .saved-item {
+            position: relative;
+            aspect-ratio: 1080/1350;
+            border-radius: clamp(4px, 1vw, 8px);
+            overflow: hidden;
+            border: 1px solid #333;
+            background: #000;
+        }
+
+        .saved-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .saved-item .remove-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: clamp(18px, 2.2vw, 22px);
+            height: clamp(18px, 2.2vw, 22px);
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: clamp(11px, 1.4vw, 13px);
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .saved-empty-hint {
+            grid-column: 1 / -1;
+            color: #666;
+            font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+            text-align: center;
+            padding: clamp(1rem, 2vw, 1.5rem);
+            border: 1px dashed #333;
+            border-radius: clamp(6px, 1.5vw, 8px);
+        }
+
+        /* Upload control (logo / photo) */
+        .upload-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: clamp(0.9rem, 1.8vw, 1.2rem);
+            background: #0a0a0a;
+            border: 2px dashed #333;
+            border-radius: clamp(6px, 1.5vw, 8px);
+            cursor: pointer;
+            text-align: center;
+            font-size: clamp(0.8rem, 1.3vw, 1rem);
+            color: #999;
+            transition: all 0.2s;
+        }
+
+        .upload-label:hover {
+            border-color: #fc4c0f;
+            color: #fc4c0f;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Icon picker (Template 4) */
+        .icon-picker {
+            display: flex;
+            gap: clamp(0.5rem, 1.2vw, 0.75rem);
+        }
+
+        .icon-swatch {
+            flex: 1;
+            aspect-ratio: 1;
+            background: #0a0a0a;
+            border: 2px solid #333;
+            border-radius: clamp(6px, 1.5vw, 8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(0.4rem, 1vw, 0.6rem);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .icon-swatch img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .icon-swatch:hover {
+            border-color: #fc4c0f;
+        }
+
+        .icon-swatch.active {
+            border-color: #fc4c0f;
+            background: rgba(252, 76, 15, 0.12);
+        }
+
+        /* Preview Section */
+        .preview-section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-title {
+            font-size: clamp(0.9rem, 1.6vw, 1.1rem);
+            font-weight: 600;
+            margin-bottom: clamp(0.75rem, 1.5vw, 1rem);
+            color: #fff;
+        }
+
+        .preview-container {
+            aspect-ratio: 1080/1350;
+            width: 100%;
+            max-width: clamp(300px, 90vw, 600px);
+            background: #000;
+            border-radius: clamp(8px, 2vw, 16px);
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            /* Container for cqw units — 1cqw = 1% of this box's width (Figma banner width = 1080px = 100cqw) */
+            container-type: inline-size;
+            container-name: banner;
+        }
+
+        .banner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            font-family: 'Noto Sans Armenian', sans-serif;
+            display: none;
+        }
+
+        .banner.active {
+            display: block;
+        }
+
+        .banner-bg-image {
+            position: absolute;
+            inset: 0;
+            background-color: #000;
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+        }
+
+        /* Top logo lockup — exact Figma coords: frame 449x55.291 at top 40px, centered.
+           AI Sapiens vector: x0 w197.946 h55.291 (full frame height)
+           Executive mark: x229.946 (gap 32px) w193.924 h34.854, vertically centered */
+        .banner-logos {
+            position: absolute;
+            top: 3.7037cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 11;
+            display: flex;
+            align-items: center;
+            gap: 2.9630cqw;
+        }
+
+        .banner-logos img.logo-ai {
+            height: 5.1195cqw;
+            width: auto;
+            display: block;
+        }
+
+        .banner-logos img.logo-exec {
+            height: 3.2272cqw;
+            width: auto;
+            display: block;
+        }
+
+        /* Scaled-down logo lockup variant used by Template 3 (0.85x, top 30px instead of 40px) */
+        .banner-logos.small {
+            top: 2.7778cqw;
+            gap: 2.5185cqw;
+        }
+
+        .banner-logos.small img.logo-ai {
+            height: 4.3519cqw;
+        }
+
+        .banner-logos.small img.logo-exec {
+            height: 2.7431cqw;
+        }
+
+        /* Shared placeholder box for empty upload areas */
+        .media-placeholder {
+            color: #555;
+            font-size: 1.6cqw;
+            text-align: center;
+            border: 0.15cqw dashed #444;
+            border-radius: 1cqw;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1cqw;
+        }
+
+        /* ===== Template 1: Акция ===== */
+
+        /* Text block — Figma group: width 797.971/1080, vertical center offset -70.38px from banner center */
+        .banner-text-block {
+            position: absolute;
+            top: calc(50% - 6.5167cqw);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2.9630cqw;
+            width: 73.8862cqw;
+            text-align: center;
+        }
+
+        .banner-text-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.1111cqw;
+        }
+
+        /* Coming soon badge — pt8 pb10 px18 radius130.933 font24 (Figma px / 1080 * 100)
+           max-width + ellipsis so a too-long badge truncates instead of overflowing the banner */
+        .banner-badge {
+            background: #242424;
+            padding: 0.7407cqw 1.6667cqw 0.9259cqw;
+            border-radius: 12.1234cqw;
+            font-size: 2.2222cqw;
+            color: white;
+            font-weight: 400;
+            line-height: 1.6;
+            white-space: nowrap;
+            max-width: 80cqw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Titles — font80 letterspacing-1.6 lineheight1.11, capped at 2 lines each so a long input can't
+           push into the logos above or the CTA below (block is vertically centered, grows both ways) */
+        .banner-title,
+        .banner-subtitle {
+            font-size: 7.4074cqw;
+            font-weight: 500;
+            line-height: 1.11;
+            color: #f3eee6;
+            letter-spacing: -0.1481cqw;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Description — font30 letterspacing0.3 lineheight1.6, constrained to column width (73.8862cqw), max 3 lines */
+        .banner-description {
+            font-size: 2.7778cqw;
+            font-weight: 400;
+            color: white;
+            line-height: 1.6;
+            letter-spacing: 0.0278cqw;
+            width: 100%;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* CTA — positioned at top:1053.03px (of 1350 tall canvas) == 97.5028cqw since aspect ratio is locked
+           max-width + ellipsis so a too-long button label truncates instead of overflowing the banner */
+        .banner-cta {
+            position: absolute;
+            top: 97.5028cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: #fc4c0f;
+            color: white;
+            padding: 1.5142cqw 2.5236cqw 1.7665cqw;
+            border-radius: 5.0472cqw;
+            font-size: 4.0378cqw;
+            font-weight: 400;
+            letter-spacing: 0.0808cqw;
+            line-height: 1.6;
+            white-space: nowrap;
+            max-width: 80cqw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ===== Template 2: Анонс партнёра ===== */
+
+        /* Description — top:179px w:531px font30 tracking0.3 lineheight1.6 (Figma px / 1080 * 100), max 6 lines */
+        .p2-description {
+            position: absolute;
+            top: 16.5741cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 49.1667cqw;
+            text-align: center;
+            font-size: 2.7778cqw;
+            font-weight: 400;
+            color: white;
+            line-height: 1.6;
+            letter-spacing: 0.0278cqw;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 6;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Badge — top:408px, same visual spec as template1 badge */
+        .p2-badge {
+            position: absolute;
+            top: 103cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: #242424;
+            padding: 0.7407cqw 1.6667cqw 0.9259cqw;
+            border-radius: 12.1234cqw;
+            font-size: 2.2222cqw;
+            color: white;
+            font-weight: 400;
+            line-height: 1.6;
+            white-space: nowrap;
+            max-width: 80cqw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Partner logo area — bounding box of the Figma lockup group: x72 y495 w935.252 h361 (/1080*100) */
+        .p2-logo-area {
+            position: absolute;
+            top: 45.8333cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 86.5974cqw;
+            height: 33.4259cqw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .p2-logo-area img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* ===== Template 3: Проект партнёра (photo + partner logo) ===== */
+
+        /* Title — width958/1080, vertical center offset -399.26px from banner center */
+        .t3-title {
+            position: absolute;
+            top: calc(50% - 36.9685cqw);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            width: 88.7037cqw;
+            text-align: center;
+            font-size: 7.4074cqw;
+            font-weight: 500;
+            line-height: 1.11;
+            color: #f3eee6;
+            letter-spacing: -0.1481cqw;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Photo frame — top457 w866 h491 radius20 (/1080*100) */
+        .t3-photo-area {
+            position: absolute;
+            top: 42.3148cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            width: 80.1852cqw;
+            height: 45.4630cqw;
+            border-radius: 1.8519cqw;
+            overflow: hidden;
+        }
+
+        .t3-photo-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Description — top980 w790 font30 (/1080*100) */
+        .t3-description {
+            position: absolute;
+            top: 90.7407cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 73.1481cqw;
+            text-align: center;
+            font-size: 2.7778cqw;
+            font-weight: 400;
+            color: white;
+            line-height: 1.6;
+            letter-spacing: 0.0278cqw;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Partner logo area — measured to the visible "Link Company" wordmark placement */
+        .t3-logo-area {
+            position: absolute;
+            top: 104.5cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 32cqw;
+            height: 14cqw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .t3-logo-area img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* ===== Template 4: Тизер с иконкой ===== */
+
+        /* Title — top203 font100 tracking-2 lineheight1.05, max 3 lines */
+        .t4-title {
+            position: absolute;
+            top: 18.7963cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 90cqw;
+            text-align: center;
+            font-size: 9.2593cqw;
+            font-weight: 500;
+            line-height: 1.05;
+            color: #f3eee6;
+            letter-spacing: -0.1852cqw;
+            word-break: break-word;
+            white-space: pre-line;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Icon area — centered box w225 h234, vertical center offset -20px from banner center */
+        .t4-icon-area {
+            position: absolute;
+            top: calc(50% - 1.8519cqw);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            width: 20.8333cqw;
+            height: 21.6667cqw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .t4-icon-area img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Bottom group (badge + description) — top890 w692 gap52 (/1080*100) */
+        .t4-bottom-group {
+            position: absolute;
+            top: 82.4074cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 64.0741cqw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4.8148cqw;
+        }
+
+        /* Description — font28 lineheight1.33 tracking0.28, max 4 lines */
+        .t4-description {
+            text-align: center;
+            font-size: 2.5926cqw;
+            font-weight: 400;
+            color: white;
+            line-height: 1.33;
+            letter-spacing: 0.0259cqw;
+            width: 100%;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* ===== Template 5: Спикер (person photo, fixed bg11 background) ===== */
+
+        /* Title — top143 (same font spec as Template 4's title) */
+        .t5-title {
+            position: absolute;
+            top: 13.2407cqw;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 90cqw;
+            text-align: center;
+            font-size: 9.2593cqw;
+            font-weight: 500;
+            line-height: 1.05;
+            color: #f3eee6;
+            letter-spacing: -0.1852cqw;
+            word-break: break-word;
+            white-space: pre-line;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Photo area — left149 top413 w781 h942 (/1080*100), anchored to bottom like the Figma cutout */
+        .t5-photo-area {
+            position: absolute;
+            left: 13.7963cqw;
+            top: 38.2407cqw;
+            z-index: 5;
+            width: 72.3148cqw;
+            height: 87.2222cqw;
+            overflow: hidden;
+        }
+
+        .t5-photo-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: bottom center;
+            display: block;
+        }
+
+        /* ===== Horizontal (16:9, 1920x1080) export template =====
+           Rendered off-screen at fixed native size and captured with html2canvas on demand;
+           not a Figma spec, built generically from whatever the active vertical template currently holds. */
+        .landscape-banner {
+            position: fixed;
+            left: -10000px;
+            top: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Noto Sans Armenian', sans-serif;
+        }
+
+        .landscape-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .landscape-logos {
+            position: absolute;
+            top: 48px;
+            left: 64px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .landscape-logos img.logo-ai { height: 46px; width: auto; }
+        .landscape-logos img.logo-exec { height: 29px; width: auto; }
+
+        .landscape-content {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 100px;
+            gap: 60px;
+        }
+
+        .landscape-text {
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 28px;
+            color: #fff;
+        }
+
+        .landscape-badge {
+            background: #242424;
+            padding: 14px 28px;
+            border-radius: 100px;
+            font-size: 22px;
+            color: #fff;
+            white-space: nowrap;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .landscape-title {
+            font-size: 64px;
+            font-weight: 500;
+            line-height: 1.1;
+            color: #f3eee6;
+            letter-spacing: -1px;
+            white-space: pre-line;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .landscape-description {
+            font-size: 24px;
+            line-height: 1.5;
+            color: #fff;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .landscape-cta {
+            background: #fc4c0f;
+            color: #fff;
+            padding: 18px 36px;
+            border-radius: 60px;
+            font-size: 32px;
+            white-space: nowrap;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .landscape-media {
+            width: 560px;
+            height: 560px;
+            flex: none;
+            border-radius: 24px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .landscape-media img {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .landscape-banner.no-media .landscape-content {
+            justify-content: center;
+        }
+
+        .landscape-banner.no-media .landscape-text {
+            align-items: center;
+            text-align: center;
+            max-width: 1400px;
+        }
+
+        .landscape-banner.no-media .landscape-badge,
+        .landscape-banner.no-media .landscape-cta {
+            align-self: center;
+        }
+
+        @media (max-width: 1200px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img class="header-logo" src="aisapienslogo.svg" alt="AI Sapiens">
+            <div class="header-text">
+                <h1>AI Sapiens Banners</h1>
+                <p class="header-desc">Создавай баннеры по точному макету</p>
+            </div>
+        </header>
+
+        <div class="template-tabs">
+            <div class="template-tab active" data-template="promo" onclick="switchTemplate('promo')">Акция</div>
+            <div class="template-tab" data-template="partner" onclick="switchTemplate('partner')">Анонс партнёра</div>
+            <div class="template-tab" data-template="automation" onclick="switchTemplate('automation')">Проект партнёра</div>
+            <div class="template-tab" data-template="teaser" onclick="switchTemplate('teaser')">Тизер</div>
+            <div class="template-tab" data-template="speaker" onclick="switchTemplate('speaker')">Спикер</div>
+        </div>
+
+        <div class="main">
+            <!-- Контролы -->
+            <div class="controls">
+                <!-- Template 1: Акция -->
+                <div class="control-panel active" id="panel-promo">
+                    <div class="control-section">
+                        <label class="control-label">Заголовок 1</label>
+                        <input type="text" id="title" value="AI Sapiens Vol.2" maxlength="60">
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Заголовок 2</label>
+                        <input type="text" id="subtitle" value="EARLY BIRD OFFER" maxlength="60">
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Описание</label>
+                        <textarea id="description" maxlength="300">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</textarea>
+                        <span class="control-hint">Ширина текста ограничена колонкой макета — длинный текст перенесётся на новую строку</span>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Текст кнопки</label>
+                        <input type="text" id="cta" value="20% ԶԵՂՉ" maxlength="40">
+                    </div>
+                </div>
+
+                <!-- Template 2: Анонс партнёра -->
+                <div class="control-panel" id="panel-partner">
+                    <div class="control-section">
+                        <label class="control-label">Описание</label>
+                        <textarea id="p2Description" maxlength="300">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</textarea>
+                        <span class="control-hint">Ширина текста ограничена 531px из макета, максимум 6 строк — лишнее обрежется</span>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Текст плашки</label>
+                        <input type="text" id="p2Badge" value="Պաշտոնական գործընկեր" maxlength="60">
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Логотип партнёра</label>
+                        <label class="upload-label" id="p2LogoLabel">
+                            <span id="p2LogoLabelText">Загрузить логотип...</span>
+                            <input type="file" id="p2LogoFile" accept="image/*">
+                        </label>
+                        <span class="control-hint">Партнёр загружает свой логотип — он впишется в отведённую область макета без искажений</span>
+                    </div>
+                </div>
+
+                <!-- Template 3: Проект партнёра -->
+                <div class="control-panel" id="panel-automation">
+                    <div class="control-section">
+                        <label class="control-label">Заголовок</label>
+                        <input type="text" id="t3Title" value="Համալիր ավտոմատացում" maxlength="80">
+                        <span class="control-hint">Ширина ограничена колонкой макета (958px) — длинный текст перенесётся на новую строку</span>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Фото по центру</label>
+                        <label class="upload-label" id="t3PhotoLabel">
+                            <span id="t3PhotoLabelText">Загрузить фото...</span>
+                            <input type="file" id="t3PhotoFile" accept="image/*">
+                        </label>
+                        <span class="control-hint">Если фото не загружено — область остаётся заглушкой</span>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Описание</label>
+                        <textarea id="t3Description" maxlength="300">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</textarea>
+                        <span class="control-hint">Ширина текста ограничена 790px из макета — длинный текст перенесётся на новую строку</span>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Логотип партнёра</label>
+                        <label class="upload-label" id="t3LogoLabel">
+                            <span id="t3LogoLabelText">Загрузить логотип...</span>
+                            <input type="file" id="t3LogoFile" accept="image/*">
+                        </label>
+                        <span class="control-hint">Партнёр загружает свой логотип — он впишется без искажений. Фон у этого шаблона фиксированный.</span>
+                    </div>
+                </div>
+
+                <!-- Template 4: Тизер -->
+                <div class="control-panel" id="panel-teaser">
+                    <div class="control-section">
+                        <label class="control-label">Заголовок</label>
+                        <textarea id="t4Title" maxlength="120">AI Sapiens Vol.2
+Yerevan, Oct 17 2026</textarea>
+                        <span class="control-hint">Максимум 3 строки — лишнее обрежется</span>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Иконка</label>
+                        <div class="icon-picker">
+                            <div class="icon-swatch active" data-icon="ic1.svg" onclick="selectIcon('ic1.svg', this)"><img src="ic1.svg" alt="Иконка 1"></div>
+                            <div class="icon-swatch" data-icon="ic2.svg" onclick="selectIcon('ic2.svg', this)"><img src="ic2.svg" alt="Иконка 2"></div>
+                            <div class="icon-swatch" data-icon="ic3.svg" onclick="selectIcon('ic3.svg', this)"><img src="ic3.svg" alt="Иконка 3"></div>
+                            <div class="icon-swatch" data-icon="ic4.svg" onclick="selectIcon('ic4.svg', this)"><img src="ic4.svg" alt="Иконка 4"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Текст плашки</label>
+                        <input type="text" id="t4Badge" value="Coming soon" maxlength="60">
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Описание</label>
+                        <textarea id="t4Description" maxlength="300">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</textarea>
+                        <span class="control-hint">Максимум 4 строки — лишнее обрежется</span>
+                    </div>
+                </div>
+
+                <!-- Template 5: Спикер -->
+                <div class="control-panel" id="panel-speaker">
+                    <div class="control-section">
+                        <label class="control-label">Заголовок</label>
+                        <textarea id="t5Title" maxlength="120">AI Sapiens Vol.2
+Yerevan, Oct 17 2026</textarea>
+                    </div>
+
+                    <div class="control-section">
+                        <label class="control-label">Фото спикера</label>
+                        <label class="upload-label" id="t5PhotoLabel">
+                            <span id="t5PhotoLabelText">Загрузить фото...</span>
+                            <input type="file" id="t5PhotoFile" accept="image/*">
+                        </label>
+                        <span class="control-hint">Если своё фото не загружено — показывается фото по умолчанию (Hayk). Фон у этого шаблона фиксированный.</span>
+                    </div>
+                </div>
+
+                <div class="control-section" id="bgSelectSection">
+                    <label class="control-label">Фоновое изображение</label>
+                    <select id="bgSelect">
+                        <option value="bg1.png" selected>Классика</option>
+                        <option value="bg2.png">Панель с лучами</option>
+                        <option value="bg3.png">Панель в рамке</option>
+                        <option value="bg4.png">Дуотон</option>
+                        <option value="bg5.png">Три луча</option>
+                    </select>
+                </div>
+
+                <div class="control-section">
+                    <label class="control-label">Действия</label>
+                    <div class="button-group">
+                        <button onclick="downloadSingle()">Скачать баннер</button>
+                        <button class="btn-secondary" onclick="downloadLandscape()">Скачать 16:9</button>
+                        <button class="btn-secondary" onclick="resetForm()">Сброс</button>
+                        <button class="btn-add" onclick="saveCurrentBanner()" title="Сохранить для пакетного скачивания">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Предпросмотр -->
+            <div class="preview-section">
+                <div class="single-preview">
+                    <div class="preview-title">Предпросмотр</div>
+                    <div class="preview-container">
+
+                        <!-- Template 1: Акция -->
+                        <div class="banner active" id="banner-promo">
+                            <div class="banner-bg-image" id="bannerBgImage-promo"></div>
+                            <div class="banner-logos">
+                                <img class="logo-ai" src="aisapienslogo.svg" alt="AI SAPIENS">
+                                <img class="logo-exec" src="executivelogo.svg" alt="business executive">
+                            </div>
+                            <div class="banner-text-block">
+                                <div class="banner-text-wrapper">
+                                    <div class="banner-badge">Coming soon — Yerevan, Oct 17 2026</div>
+                                    <div>
+                                        <h2 class="banner-title" id="previewTitle">AI Sapiens Vol.2</h2>
+                                        <p class="banner-subtitle" id="previewSubtitle">EARLY BIRD OFFER</p>
+                                    </div>
+                                </div>
+                                <p class="banner-description" id="previewDescription">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</p>
+                            </div>
+                            <div class="banner-cta" id="previewCta">20% ԶԵՂՉ</div>
+                        </div>
+
+                        <!-- Template 2: Анонс партнёра -->
+                        <div class="banner" id="banner-partner">
+                            <div class="banner-bg-image" id="bannerBgImage-partner"></div>
+                            <div class="banner-logos">
+                                <img class="logo-ai" src="aisapienslogo.svg" alt="AI SAPIENS">
+                                <img class="logo-exec" src="executivelogo.svg" alt="business executive">
+                            </div>
+                            <p class="p2-description" id="p2PreviewDescription">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</p>
+                            <div class="p2-badge" id="p2PreviewBadge">Պաշտոնական գործընկեր</div>
+                            <div class="p2-logo-area" id="p2LogoArea">
+                                <div class="media-placeholder" id="p2LogoPlaceholder">Логотип партнёра</div>
+                            </div>
+                        </div>
+
+                        <!-- Template 3: Проект партнёра -->
+                        <div class="banner" id="banner-automation">
+                            <div class="banner-bg-image" id="bannerBgImage-automation"></div>
+                            <div class="banner-logos small">
+                                <img class="logo-ai" src="aisapienslogo.svg" alt="AI SAPIENS">
+                                <img class="logo-exec" src="executivelogo.svg" alt="business executive">
+                            </div>
+                            <h2 class="t3-title" id="t3PreviewTitle">Համալիր ավտոմատացում</h2>
+                            <div class="t3-photo-area" id="t3PhotoArea">
+                                <div class="media-placeholder" id="t3PhotoPlaceholder">Фото</div>
+                            </div>
+                            <p class="t3-description" id="t3PreviewDescription">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</p>
+                            <div class="t3-logo-area" id="t3LogoArea">
+                                <div class="media-placeholder" id="t3LogoPlaceholder">Логотип партнёра</div>
+                            </div>
+                        </div>
+
+                        <!-- Template 4: Тизер -->
+                        <div class="banner" id="banner-teaser">
+                            <div class="banner-bg-image" id="bannerBgImage-teaser"></div>
+                            <div class="banner-logos">
+                                <img class="logo-ai" src="aisapienslogo.svg" alt="AI SAPIENS">
+                                <img class="logo-exec" src="executivelogo.svg" alt="business executive">
+                            </div>
+                            <h2 class="t4-title" id="t4PreviewTitle">AI Sapiens Vol.2
+Yerevan, Oct 17 2026</h2>
+                            <div class="t4-icon-area">
+                                <img id="t4PreviewIcon" src="ic1.svg" alt="icon">
+                            </div>
+                            <div class="t4-bottom-group">
+                                <div class="banner-badge" id="t4PreviewBadge">Coming soon</div>
+                                <p class="t4-description" id="t4PreviewDescription">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</p>
+                            </div>
+                        </div>
+
+                        <!-- Template 5: Спикер -->
+                        <div class="banner" id="banner-speaker">
+                            <div class="banner-bg-image" id="bannerBgImage-speaker"></div>
+                            <div class="banner-logos">
+                                <img class="logo-ai" src="aisapienslogo.svg" alt="AI SAPIENS">
+                                <img class="logo-exec" src="executivelogo.svg" alt="business executive">
+                            </div>
+                            <h2 class="t5-title" id="t5PreviewTitle">AI Sapiens Vol.2
+Yerevan, Oct 17 2026</h2>
+                            <div class="t5-photo-area" id="t5PhotoArea">
+                                <img src="hayk.png" alt="Спикер">
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="saved-section">
+                    <div class="saved-header">
+                        <div class="preview-title">Сохранённые баннеры</div>
+                        <button class="btn-download-all" id="downloadAllBtn" onclick="downloadSavedBanners()">Скачать всё</button>
+                    </div>
+                    <div class="saved-grid" id="savedGrid">
+                        <div class="saved-empty-hint">Нажмите «+», чтобы сохранить баннер сюда и скачать несколько сразу</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden 16:9 export template — populated on demand from whichever vertical template is active -->
+    <div class="landscape-banner" id="landscapeBanner">
+        <div class="landscape-bg" id="landscapeBg"></div>
+        <div class="landscape-logos">
+            <img class="logo-ai" src="aisapienslogo.svg" alt="AI SAPIENS">
+            <img class="logo-exec" src="executivelogo.svg" alt="business executive">
+        </div>
+        <div class="landscape-content">
+            <div class="landscape-text">
+                <div class="landscape-badge" id="landscapeBadge"></div>
+                <h2 class="landscape-title" id="landscapeTitle"></h2>
+                <p class="landscape-description" id="landscapeDescription"></p>
+                <div class="landscape-cta" id="landscapeCta"></div>
+            </div>
+            <div class="landscape-media" id="landscapeMedia"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script>
+        const DEFAULT_TITLE = 'AI Sapiens Vol.2';
+        const DEFAULT_SUBTITLE = 'EARLY BIRD OFFER';
+        const DEFAULT_DESCRIPTION = 'Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։';
+        const DEFAULT_CTA = '20% ԶԵՂՉ';
+        const DEFAULT_P2_BADGE = 'Պաշտոնական գործընկեր';
+        const DEFAULT_T3_TITLE = 'Համալիր ավտոմատացում';
+        const DEFAULT_T4_TITLE = 'AI Sapiens Vol.2\nYerevan, Oct 17 2026';
+        const DEFAULT_T4_BADGE = 'Coming soon';
+        const DEFAULT_T5_TITLE = 'AI Sapiens Vol.2\nYerevan, Oct 17 2026';
+        const DEFAULT_BG = 'bg1.png';
+
+        // Per-template list of selectable backgrounds (only templates with a dropdown are listed here)
+        const BG_OPTIONS = {
+            promo: [
+                ['bg1.png', 'Классика'],
+                ['bg3.png', 'Панель в рамке'],
+                ['bg4.png', 'Дуотон'],
+                ['bg5.png', 'Три луча']
+            ],
+            teaser: [
+                ['bg1.png', 'Классика'],
+                ['bg4.png', 'Дуотон'],
+                ['bg12.png', 'Пять лучей']
+            ]
+        };
+
+        // Templates whose background is shared via the dropdown
+        const SHARED_BG_TEMPLATES = Object.keys(BG_OPTIONS);
+        // Templates with a single fixed background (no dropdown)
+        const FIXED_BG = { partner: 'bg2.png', automation: 'bg3.png', speaker: 'bg11.png' };
+
+        const TEMPLATES = ['promo', 'partner', 'automation', 'teaser', 'speaker'];
+
+        let currentTemplate = 'promo';
+        let p2LogoDataUrl = null;
+        let t3PhotoDataUrl = null;
+        let t3LogoDataUrl = null;
+        let t5PhotoDataUrl = null;
+
+        // Remembers which background is currently selected for each shared-bg template independently
+        const currentBgByTemplate = { promo: DEFAULT_BG, teaser: BG_OPTIONS.teaser[0][0] };
+
+        function applyBackground(file) {
+            const url = file ? `url(${file})` : '';
+            document.getElementById(`bannerBgImage-${currentTemplate}`).style.backgroundImage = url;
+            currentBgByTemplate[currentTemplate] = file;
+        }
+
+        function applyFixedBackgrounds() {
+            Object.entries(FIXED_BG).forEach(([name, file]) => {
+                document.getElementById(`bannerBgImage-${name}`).style.backgroundImage = `url(${file})`;
+            });
+        }
+
+        function refreshBgSelect(name) {
+            const select = document.getElementById('bgSelect');
+            const options = BG_OPTIONS[name];
+            select.innerHTML = options.map(([file, label]) => `<option value="${file}">${label}</option>`).join('');
+            select.value = currentBgByTemplate[name];
+            document.getElementById(`bannerBgImage-${name}`).style.backgroundImage = `url(${currentBgByTemplate[name]})`;
+        }
+
+        function switchTemplate(name) {
+            currentTemplate = name;
+            document.querySelectorAll('.template-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.template === name);
+            });
+            TEMPLATES.forEach(t => {
+                document.getElementById(`panel-${t}`).classList.toggle('active', t === name);
+                document.getElementById(`banner-${t}`).classList.toggle('active', t === name);
+            });
+            const hasDropdown = SHARED_BG_TEMPLATES.includes(name);
+            document.getElementById('bgSelectSection').style.display = hasDropdown ? 'block' : 'none';
+            if (hasDropdown) refreshBgSelect(name);
+        }
+
+        // Background selection
+        document.getElementById('bgSelect').addEventListener('change', function(e) {
+            applyBackground(e.target.value);
+        });
+
+        // ===== Template 1 real-time preview updates =====
+        document.getElementById('title').addEventListener('input', function() {
+            document.getElementById('previewTitle').textContent = this.value || DEFAULT_TITLE;
+        });
+
+        document.getElementById('subtitle').addEventListener('input', function() {
+            document.getElementById('previewSubtitle').textContent = this.value || DEFAULT_SUBTITLE;
+        });
+
+        document.getElementById('description').addEventListener('input', function() {
+            document.getElementById('previewDescription').textContent = this.value || '';
+        });
+
+        document.getElementById('cta').addEventListener('input', function() {
+            document.getElementById('previewCta').textContent = this.value || DEFAULT_CTA;
+        });
+
+        // ===== Template 2 real-time preview updates =====
+        document.getElementById('p2Description').addEventListener('input', function() {
+            document.getElementById('p2PreviewDescription').textContent = this.value || '';
+        });
+
+        document.getElementById('p2Badge').addEventListener('input', function() {
+            document.getElementById('p2PreviewBadge').textContent = this.value || DEFAULT_P2_BADGE;
+        });
+
+        document.getElementById('p2LogoFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                p2LogoDataUrl = event.target.result;
+                document.getElementById('p2LogoArea').innerHTML = `<img src="${p2LogoDataUrl}" alt="${file.name}">`;
+                document.getElementById('p2LogoLabelText').textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // ===== Template 3 real-time preview updates =====
+        document.getElementById('t3Title').addEventListener('input', function() {
+            document.getElementById('t3PreviewTitle').textContent = this.value || DEFAULT_T3_TITLE;
+        });
+
+        document.getElementById('t3Description').addEventListener('input', function() {
+            document.getElementById('t3PreviewDescription').textContent = this.value || '';
+        });
+
+        document.getElementById('t3PhotoFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                t3PhotoDataUrl = event.target.result;
+                document.getElementById('t3PhotoArea').innerHTML = `<img src="${t3PhotoDataUrl}" alt="${file.name}">`;
+                document.getElementById('t3PhotoLabelText').textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('t3LogoFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                t3LogoDataUrl = event.target.result;
+                document.getElementById('t3LogoArea').innerHTML = `<img src="${t3LogoDataUrl}" alt="${file.name}">`;
+                document.getElementById('t3LogoLabelText').textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // ===== Template 4 real-time preview updates =====
+        document.getElementById('t4Title').addEventListener('input', function() {
+            document.getElementById('t4PreviewTitle').textContent = this.value || DEFAULT_T4_TITLE;
+        });
+
+        document.getElementById('t4Badge').addEventListener('input', function() {
+            document.getElementById('t4PreviewBadge').textContent = this.value || DEFAULT_T4_BADGE;
+        });
+
+        document.getElementById('t4Description').addEventListener('input', function() {
+            document.getElementById('t4PreviewDescription').textContent = this.value || '';
+        });
+
+        function selectIcon(file, el) {
+            document.getElementById('t4PreviewIcon').src = file;
+            document.querySelectorAll('.icon-swatch').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        // ===== Template 5 real-time preview updates =====
+        document.getElementById('t5Title').addEventListener('input', function() {
+            document.getElementById('t5PreviewTitle').textContent = this.value || DEFAULT_T5_TITLE;
+        });
+
+        document.getElementById('t5PhotoFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                t5PhotoDataUrl = event.target.result;
+                document.getElementById('t5PhotoArea').innerHTML = `<img src="${t5PhotoDataUrl}" alt="${file.name}">`;
+                document.getElementById('t5PhotoLabelText').textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Download single banner (whichever template is active)
+        async function downloadSingle() {
+            const banner = document.getElementById(`banner-${currentTemplate}`);
+            try {
+                const canvas = await html2canvas(banner, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: null
+                });
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = `banner-${currentTemplate}-${Date.now()}.png`;
+                link.click();
+            } catch (e) {
+                console.error('Error downloading banner:', e);
+                alert('Ошибка при скачивании. Попробуйте снова.');
+            }
+        }
+
+        // ===== Horizontal (16:9) export =====
+        // Reads whatever the currently active vertical template holds and maps it onto the
+        // generic landscape layout (no Figma spec for this — adapted to fit 1920x1080).
+        function getBgUrl(imgElId) {
+            const el = document.getElementById(imgElId);
+            const match = /url\(["']?(.*?)["']?\)/.exec(el.style.backgroundImage || '');
+            return match ? match[1] : '';
+        }
+
+        function getTemplateContentForLandscape(name) {
+            const text = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.textContent.trim() : '';
+            };
+            const mediaSrc = (selector) => {
+                const img = document.querySelector(selector);
+                return img ? img.src : null;
+            };
+
+            switch (name) {
+                case 'promo':
+                    return {
+                        bg: getBgUrl('bannerBgImage-promo'),
+                        title: `${text('previewTitle')}\n${text('previewSubtitle')}`,
+                        badge: document.querySelector('#banner-promo .banner-badge').textContent.trim(),
+                        description: text('previewDescription'),
+                        cta: text('previewCta'),
+                        media: null
+                    };
+                case 'partner':
+                    return {
+                        bg: getBgUrl('bannerBgImage-partner'),
+                        badge: text('p2PreviewBadge'),
+                        description: text('p2PreviewDescription'),
+                        media: mediaSrc('#p2LogoArea img'),
+                        mediaFit: 'contain'
+                    };
+                case 'automation':
+                    return {
+                        bg: getBgUrl('bannerBgImage-automation'),
+                        title: text('t3PreviewTitle'),
+                        description: text('t3PreviewDescription'),
+                        media: mediaSrc('#t3PhotoArea img'),
+                        mediaFit: 'cover'
+                    };
+                case 'teaser':
+                    return {
+                        bg: getBgUrl('bannerBgImage-teaser'),
+                        title: text('t4PreviewTitle'),
+                        badge: text('t4PreviewBadge'),
+                        description: text('t4PreviewDescription'),
+                        media: mediaSrc('#t4PreviewIcon'),
+                        mediaFit: 'contain'
+                    };
+                case 'speaker':
+                    return {
+                        bg: getBgUrl('bannerBgImage-speaker'),
+                        title: text('t5PreviewTitle'),
+                        media: mediaSrc('#t5PhotoArea img'),
+                        mediaFit: 'cover'
+                    };
+                default:
+                    return {};
+            }
+        }
+
+        function populateLandscape(content) {
+            document.getElementById('landscapeBg').style.backgroundImage = content.bg ? `url(${content.bg})` : '';
+
+            const badgeEl = document.getElementById('landscapeBadge');
+            badgeEl.textContent = content.badge || '';
+            badgeEl.style.display = content.badge ? 'inline-block' : 'none';
+
+            const titleEl = document.getElementById('landscapeTitle');
+            titleEl.textContent = content.title || '';
+            titleEl.style.display = content.title ? 'block' : 'none';
+
+            const descEl = document.getElementById('landscapeDescription');
+            descEl.textContent = content.description || '';
+            descEl.style.display = content.description ? 'block' : 'none';
+
+            const ctaEl = document.getElementById('landscapeCta');
+            ctaEl.textContent = content.cta || '';
+            ctaEl.style.display = content.cta ? 'inline-block' : 'none';
+
+            const mediaBox = document.getElementById('landscapeMedia');
+            const banner = document.getElementById('landscapeBanner');
+            if (content.media) {
+                mediaBox.innerHTML = `<img src="${content.media}" style="object-fit:${content.mediaFit || 'contain'};width:100%;height:100%;">`;
+                mediaBox.style.display = 'flex';
+                banner.classList.remove('no-media');
+            } else {
+                mediaBox.innerHTML = '';
+                mediaBox.style.display = 'none';
+                banner.classList.add('no-media');
+            }
+        }
+
+        function waitForImages(container) {
+            const imgs = Array.from(container.querySelectorAll('img'));
+            return Promise.all(imgs.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.addEventListener('load', resolve, { once: true });
+                    img.addEventListener('error', resolve, { once: true });
+                });
+            }));
+        }
+
+        async function downloadLandscape() {
+            const content = getTemplateContentForLandscape(currentTemplate);
+            populateLandscape(content);
+            const banner = document.getElementById('landscapeBanner');
+            await waitForImages(banner);
+            try {
+                const canvas = await html2canvas(banner, {
+                    scale: 1,
+                    width: 1920,
+                    height: 1080,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#000000'
+                });
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = `banner-${currentTemplate}-16x9-${Date.now()}.png`;
+                link.click();
+            } catch (e) {
+                console.error('Error downloading landscape banner:', e);
+                alert('Ошибка при скачивании горизонтального баннера. Попробуйте снова.');
+            }
+        }
+
+        // ===== Batch save (the "+" button and the saved-banners grid) =====
+        let savedBanners = [];
+        let savedCounter = 0;
+
+        async function saveCurrentBanner() {
+            const banner = document.getElementById(`banner-${currentTemplate}`);
+            try {
+                const canvas = await html2canvas(banner, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: null
+                });
+                savedBanners.push({
+                    id: `saved-${++savedCounter}`,
+                    template: currentTemplate,
+                    dataUrl: canvas.toDataURL('image/png')
+                });
+                renderSavedGrid();
+            } catch (e) {
+                console.error('Error saving banner:', e);
+                alert('Не удалось сохранить баннер. Попробуйте снова.');
+            }
+        }
+
+        function removeSavedBanner(id) {
+            savedBanners = savedBanners.filter(b => b.id !== id);
+            renderSavedGrid();
+        }
+
+        function renderSavedGrid() {
+            const grid = document.getElementById('savedGrid');
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
+            if (savedBanners.length === 0) {
+                grid.innerHTML = '<div class="saved-empty-hint">Нажмите «+», чтобы сохранить баннер сюда и скачать несколько сразу</div>';
+                downloadAllBtn.style.display = 'none';
+                return;
+            }
+            downloadAllBtn.style.display = 'inline-block';
+            grid.innerHTML = savedBanners.map(b => `
+                <div class="saved-item">
+                    <img src="${b.dataUrl}" alt="banner">
+                    <button class="remove-btn" onclick="removeSavedBanner('${b.id}')">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        async function downloadSavedBanners() {
+            if (savedBanners.length === 0) return;
+
+            if (savedBanners.length === 1) {
+                const only = savedBanners[0];
+                const link = document.createElement('a');
+                link.href = only.dataUrl;
+                link.download = `banner-${only.template}-${Date.now()}.png`;
+                link.click();
+                return;
+            }
+
+            try {
+                const zip = new JSZip();
+                const folder = zip.folder('banners');
+                savedBanners.forEach((b, i) => {
+                    const base64Data = b.dataUrl.split(',')[1];
+                    folder.file(`banner-${i + 1}-${b.template}.png`, base64Data, { base64: true });
+                });
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `banners-${Date.now()}.zip`;
+                link.click();
+            } catch (e) {
+                console.error('Error downloading zip:', e);
+                alert('Ошибка при скачивании архива. Попробуйте снова.');
+            }
+        }
+
+        // Reset form
+        function resetForm() {
+            document.getElementById('title').value = DEFAULT_TITLE;
+            document.getElementById('subtitle').value = DEFAULT_SUBTITLE;
+            document.getElementById('description').value = DEFAULT_DESCRIPTION;
+            document.getElementById('cta').value = DEFAULT_CTA;
+            currentBgByTemplate.promo = BG_OPTIONS.promo[0][0];
+            currentBgByTemplate.teaser = BG_OPTIONS.teaser[0][0];
+            document.getElementById('bannerBgImage-promo').style.backgroundImage = `url(${currentBgByTemplate.promo})`;
+            document.getElementById('bannerBgImage-teaser').style.backgroundImage = `url(${currentBgByTemplate.teaser})`;
+            if (SHARED_BG_TEMPLATES.includes(currentTemplate)) refreshBgSelect(currentTemplate);
+
+            document.getElementById('previewTitle').textContent = DEFAULT_TITLE;
+            document.getElementById('previewSubtitle').textContent = DEFAULT_SUBTITLE;
+            document.getElementById('previewDescription').textContent = DEFAULT_DESCRIPTION;
+            document.getElementById('previewCta').textContent = DEFAULT_CTA;
+
+            document.getElementById('p2Description').value = DEFAULT_DESCRIPTION;
+            document.getElementById('p2Badge').value = DEFAULT_P2_BADGE;
+            document.getElementById('p2PreviewDescription').textContent = DEFAULT_DESCRIPTION;
+            document.getElementById('p2PreviewBadge').textContent = DEFAULT_P2_BADGE;
+            p2LogoDataUrl = null;
+            document.getElementById('p2LogoArea').innerHTML = '<div class="media-placeholder" id="p2LogoPlaceholder">Логотип партнёра</div>';
+            document.getElementById('p2LogoLabelText').textContent = 'Загрузить логотип...';
+
+            document.getElementById('t3Title').value = DEFAULT_T3_TITLE;
+            document.getElementById('t3Description').value = DEFAULT_DESCRIPTION;
+            document.getElementById('t3PreviewTitle').textContent = DEFAULT_T3_TITLE;
+            document.getElementById('t3PreviewDescription').textContent = DEFAULT_DESCRIPTION;
+            t3PhotoDataUrl = null;
+            document.getElementById('t3PhotoArea').innerHTML = '<div class="media-placeholder" id="t3PhotoPlaceholder">Фото</div>';
+            document.getElementById('t3PhotoLabelText').textContent = 'Загрузить фото...';
+            t3LogoDataUrl = null;
+            document.getElementById('t3LogoArea').innerHTML = '<div class="media-placeholder" id="t3LogoPlaceholder">Логотип партнёра</div>';
+            document.getElementById('t3LogoLabelText').textContent = 'Загрузить логотип...';
+
+            document.getElementById('t4Title').value = DEFAULT_T4_TITLE;
+            document.getElementById('t4Badge').value = DEFAULT_T4_BADGE;
+            document.getElementById('t4Description').value = DEFAULT_DESCRIPTION;
+            document.getElementById('t4PreviewTitle').textContent = DEFAULT_T4_TITLE;
+            document.getElementById('t4PreviewBadge').textContent = DEFAULT_T4_BADGE;
+            document.getElementById('t4PreviewDescription').textContent = DEFAULT_DESCRIPTION;
+            selectIcon('ic1.svg', document.querySelector('.icon-swatch[data-icon="ic1.svg"]'));
+
+            document.getElementById('t5Title').value = DEFAULT_T5_TITLE;
+            document.getElementById('t5PreviewTitle').textContent = DEFAULT_T5_TITLE;
+            t5PhotoDataUrl = null;
+            document.getElementById('t5PhotoArea').innerHTML = '<img src="hayk.png" alt="Спикер">';
+            document.getElementById('t5PhotoLabelText').textContent = 'Загрузить фото...';
+        }
+
+        // Init
+        document.getElementById('bannerBgImage-teaser').style.backgroundImage = `url(${currentBgByTemplate.teaser})`;
+        refreshBgSelect('promo');
+        applyFixedBackgrounds();
+    </script>
+</body>
+</html>
