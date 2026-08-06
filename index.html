@@ -273,6 +273,43 @@
             align-items: center;
             justify-content: center;
             padding: 0;
+            z-index: 2;
+        }
+
+        .saved-item .move-controls {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 2;
+        }
+
+        .saved-item .move-btn {
+            width: clamp(20px, 2.6vw, 26px);
+            height: clamp(20px, 2.6vw, 26px);
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: clamp(11px, 1.6vw, 14px);
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            flex: none;
+        }
+
+        .saved-item .move-btn:disabled {
+            opacity: 0.25;
+            cursor: default;
+        }
+
+        .saved-item .move-btn:not(:disabled):hover {
+            background: #fc4c0f;
         }
 
         .saved-empty-hint {
@@ -1618,6 +1655,15 @@ Yerevan, Oct 17 2026</h2>
             renderSavedGrid();
         }
 
+        function moveSavedBanner(id, direction) {
+            const from = savedBanners.findIndex(b => b.id === id);
+            const to = from + direction;
+            if (from === -1 || to < 0 || to >= savedBanners.length) return;
+            const [moved] = savedBanners.splice(from, 1);
+            savedBanners.splice(to, 0, moved);
+            renderSavedGrid();
+        }
+
         function renderSavedGrid() {
             const grid = document.getElementById('savedGrid');
             const downloadAllBtn = document.getElementById('downloadAllBtn');
@@ -1627,10 +1673,14 @@ Yerevan, Oct 17 2026</h2>
                 return;
             }
             downloadAllBtn.style.display = 'inline-block';
-            grid.innerHTML = savedBanners.map(b => `
+            grid.innerHTML = savedBanners.map((b, i) => `
                 <div class="saved-item">
                     <img src="${b.dataUrl}" alt="banner">
                     <button class="remove-btn" onclick="removeSavedBanner('${b.id}')">&times;</button>
+                    <div class="move-controls">
+                        <button class="move-btn" onclick="moveSavedBanner('${b.id}', -1)" ${i === 0 ? 'disabled' : ''} title="Переместить назад">&lsaquo;</button>
+                        <button class="move-btn" onclick="moveSavedBanner('${b.id}', 1)" ${i === savedBanners.length - 1 ? 'disabled' : ''} title="Переместить вперёд">&rsaquo;</button>
+                    </div>
                 </div>
             `).join('');
         }
