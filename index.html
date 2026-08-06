@@ -670,7 +670,10 @@
         }
 
         /* Photo frame — top457 w866 h491 radius20 (/1080*100) */
-        .t3-photo-area {
+        /* Positioning/centering lives on the outer frame; the inner element only clips.
+           html2canvas mis-renders when a single element combines a centering transform
+           with overflow:hidden + border-radius, so the two concerns are split in two. */
+        .t3-photo-frame {
             position: absolute;
             top: 42.3148cqw;
             left: 50%;
@@ -678,6 +681,11 @@
             z-index: 5;
             width: 80.1852cqw;
             height: 45.4630cqw;
+        }
+
+        .t3-photo-area {
+            width: 100%;
+            height: 100%;
             border-radius: 1.8519cqw;
             overflow: hidden;
         }
@@ -1209,8 +1217,10 @@ Yerevan, Oct 17 2026</textarea>
                                 <img class="logo-exec" src="executivelogo.svg" alt="business executive">
                             </div>
                             <h2 class="t3-title" id="t3PreviewTitle">Համալիր ավտոմատացում</h2>
-                            <div class="t3-photo-area" id="t3PhotoArea">
-                                <div class="media-placeholder" id="t3PhotoPlaceholder">Фото</div>
+                            <div class="t3-photo-frame">
+                                <div class="t3-photo-area" id="t3PhotoArea">
+                                    <div class="media-placeholder" id="t3PhotoPlaceholder">Фото</div>
+                                </div>
                             </div>
                             <p class="t3-description" id="t3PreviewDescription">Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։</p>
                             <div class="t3-logo-area" id="t3LogoArea">
