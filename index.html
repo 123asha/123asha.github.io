@@ -570,7 +570,7 @@
             font-weight: 400;
             line-height: 1.6;
             white-space: nowrap;
-            max-width: 80cqw;
+            max-width: 58cqw;
             overflow: hidden;
             text-overflow: ellipsis;
         }
@@ -623,7 +623,7 @@
             letter-spacing: 0.0808cqw;
             line-height: 1.6;
             white-space: nowrap;
-            max-width: 80cqw;
+            max-width: 58cqw;
             overflow: hidden;
             text-overflow: ellipsis;
         }
@@ -666,7 +666,7 @@
             font-weight: 400;
             line-height: 1.6;
             white-space: nowrap;
-            max-width: 80cqw;
+            max-width: 58cqw;
             overflow: hidden;
             text-overflow: ellipsis;
         }
@@ -678,7 +678,7 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
-            width: 86.5974cqw;
+            width: 60cqw;
             height: 33.4259cqw;
             display: flex;
             align-items: center;
@@ -700,7 +700,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 10;
-            width: 88.7037cqw;
+            width: 60cqw;
             text-align: center;
             font-size: 6.2963cqw;
             font-weight: 500;
@@ -749,7 +749,7 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
-            width: 73.1481cqw;
+            width: 60cqw;
             text-align: center;
             font-size: 2.7778cqw;
             font-weight: 400;
@@ -792,7 +792,7 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
-            width: 90cqw;
+            width: 60cqw;
             text-align: center;
             font-size: 7.8704cqw;
             font-weight: 500;
@@ -834,7 +834,7 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
-            width: 64.0741cqw;
+            width: 58cqw;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -866,7 +866,7 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
-            width: 90cqw;
+            width: 60cqw;
             text-align: center;
             font-size: 7.8704cqw;
             font-weight: 500;
@@ -1549,11 +1549,19 @@ Yerevan, Oct 17 2026</h2>
         });
 
         // Available export sizes: key -> {w, h, label}
+        // Exported files are rendered at 1.5x the nominal size shown in the UI (labels stay
+        // as the standard platform dimensions; actual pixel output is sharper/larger).
+        const EXPORT_SCALE = 1.5;
+
+        // 1200x628 is landscape while the source design is portrait (1080x1350) — cropping it
+        // the same way as the other (portrait/square) sizes would zoom in so far that the
+        // title/description/logos fall entirely outside the crop. Route it through the
+        // existing 16:9 landscape layout (text left, media right) instead, via `landscape: true`.
         const EXPORT_SIZES = {
             '1080x1350': { w: 1080, h: 1350, label: 'meta-1080x1350' },
             '1080x1920': { w: 1080, h: 1920, label: 'meta-1080x1920' },
             '1080x1080-meta': { w: 1080, h: 1080, label: 'meta-1080x1080' },
-            '1200x628': { w: 1200, h: 628, label: 'meta-1200x628' },
+            '1200x628': { w: 1200, h: 628, label: 'meta-1200x628', landscape: true },
             '1200x1200': { w: 1200, h: 1200, label: 'linkedin-1200x1200' },
             '1080x1080-li': { w: 1080, h: 1080, label: 'linkedin-1080x1080' },
             '720x900': { w: 720, h: 900, label: 'linkedin-720x900' }
@@ -1594,14 +1602,14 @@ Yerevan, Oct 17 2026</h2>
             });
         }
 
-        // Render the currently active template at high resolution (2x the 1080x1350 native
-        // design size) so cropping into larger export sizes like 1200x1200 doesn't upscale/blur.
+        // Render the currently active template at high resolution (3x the 1080x1350 native
+        // design size) so cropping into the 1.5x-scaled export sizes never upscales/blurs.
         async function renderMasterCanvas() {
             const banner = document.getElementById(`banner-${currentTemplate}`);
             await waitForImages(banner);
             const snapshots = freezeComputedStyles(banner);
             return html2canvas(banner, {
-                scale: (1080 * 2) / banner.offsetWidth,
+                scale: (1080 * 3) / banner.offsetWidth,
                 useCORS: true,
                 logging: false,
                 backgroundColor: null,
@@ -1640,8 +1648,27 @@ Yerevan, Oct 17 2026</h2>
             });
         });
 
+        // Render the hidden 16:9 landscape template (text left, media right) populated with
+        // the current template's content, at high resolution for downstream cropping.
+        async function renderLandscapeMasterCanvas() {
+            const content = getTemplateContentForLandscape(currentTemplate);
+            populateLandscape(content);
+            const banner = document.getElementById('landscapeBanner');
+            await waitForImages(banner);
+            return html2canvas(banner, {
+                scale: 2,
+                width: 1920,
+                height: 1080,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#000000'
+            });
+        }
+
         // Download the active template in all selected sizes: a single PNG if only one size
-        // is selected, otherwise a single zip archive containing one PNG per size.
+        // is selected, otherwise a single zip archive containing one PNG per size. Portrait/
+        // square sizes crop from the native 1080x1350 design; the landscape 1200x628 size
+        // crops from the dedicated 16:9 layout instead (see EXPORT_SIZES).
         async function downloadSelectedSizes() {
             const selected = getSelectedSizes();
             if (selected.length === 0) {
@@ -1650,25 +1677,36 @@ Yerevan, Oct 17 2026</h2>
             }
 
             try {
-                const masterCanvas = await renderMasterCanvas();
+                let masterCanvas = null;
+                let landscapeCanvas = null;
+                const needsPortrait = selected.some(key => !EXPORT_SIZES[key].landscape);
+                const needsLandscape = selected.some(key => EXPORT_SIZES[key].landscape);
+                if (needsPortrait) masterCanvas = await renderMasterCanvas();
+                if (needsLandscape) landscapeCanvas = await renderLandscapeMasterCanvas();
+
+                const canvasFor = (spec) => coverCropToSize(
+                    spec.landscape ? landscapeCanvas : masterCanvas,
+                    spec.w * EXPORT_SCALE,
+                    spec.h * EXPORT_SCALE
+                );
 
                 if (selected.length === 1) {
-                    const { w, h, label } = EXPORT_SIZES[selected[0]];
-                    const canvas = coverCropToSize(masterCanvas, w, h);
+                    const spec = EXPORT_SIZES[selected[0]];
+                    const canvas = canvasFor(spec);
                     const link = document.createElement('a');
                     link.href = canvas.toDataURL('image/png');
-                    link.download = `banner-${currentTemplate}-${label}-${Date.now()}.png`;
+                    link.download = `banner-${currentTemplate}-${spec.label}-${Date.now()}.png`;
                     link.click();
                     return;
                 }
 
                 const zip = new JSZip();
                 for (const key of selected) {
-                    const { w, h, label } = EXPORT_SIZES[key];
-                    const canvas = coverCropToSize(masterCanvas, w, h);
+                    const spec = EXPORT_SIZES[key];
+                    const canvas = canvasFor(spec);
                     const dataUrl = canvas.toDataURL('image/png');
                     const base64Data = dataUrl.split(',')[1];
-                    zip.file(`banner-${currentTemplate}-${label}.png`, base64Data, { base64: true });
+                    zip.file(`banner-${currentTemplate}-${spec.label}.png`, base64Data, { base64: true });
                 }
                 const blob = await zip.generateAsync({ type: 'blob' });
                 const link = document.createElement('a');
