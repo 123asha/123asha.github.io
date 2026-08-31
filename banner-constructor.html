@@ -254,6 +254,11 @@
             accent-color: #fc4c0f;
         }
 
+        .size-select-all {
+            margin-bottom: clamp(0.5rem, 1vw, 0.7rem);
+            font-weight: 600;
+        }
+
         /* Saved banners (batch download) */
         .saved-section {
             margin-top: clamp(1.5rem, 3vw, 2rem);
@@ -543,7 +548,7 @@
             flex-direction: column;
             align-items: center;
             gap: 2.9630cqw;
-            width: 73.8862cqw;
+            width: 60cqw;
             text-align: center;
         }
 
@@ -1201,6 +1206,7 @@ Yerevan, Oct 17 2026</textarea>
 
                 <div class="control-section">
                     <label class="control-label">Размеры для экспорта</label>
+                    <label class="size-option size-select-all"><input type="checkbox" id="selectAllSizes" onchange="toggleAllSizes(this.checked)"> Выбрать все</label>
                     <div class="size-group-label">Meta</div>
                     <div class="size-options">
                         <label class="size-option"><input type="checkbox" class="size-checkbox" value="1080x1350" checked> 1080 × 1350</label>
@@ -1553,15 +1559,53 @@ Yerevan, Oct 17 2026</h2>
             '720x900': { w: 720, h: 900, label: 'linkedin-720x900' }
         };
 
-        // Render the currently active template at full native resolution (1080x1350)
+        // html2canvas (v1.4.1) predates CSS Container Query units and can't resolve cqw/cqh —
+        // it silently treats them as 0, which is why logos/badges positioned with cqw collapse
+        // to the top-left and overlap in exports. Fix: snapshot each element's *computed*
+        // (already browser-resolved, plain px) styles from the live DOM before capture, then
+        // re-apply them onto html2canvas's cloned tree via onclone so it never has to parse cqw.
+        const FREEZE_PROPS = [
+            'top', 'left', 'right', 'bottom', 'width', 'height', 'maxWidth', 'minWidth', 'maxHeight', 'minHeight',
+            'fontSize', 'letterSpacing', 'lineHeight', 'gap',
+            'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+            'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+            'borderRadius'
+        ];
+
+        function freezeComputedStyles(sourceRoot) {
+            const nodes = [sourceRoot, ...sourceRoot.querySelectorAll('*')];
+            return nodes.map(node => {
+                const cs = getComputedStyle(node);
+                const snap = {};
+                FREEZE_PROPS.forEach(p => { snap[p] = cs[p]; });
+                return snap;
+            });
+        }
+
+        function applyFrozenStyles(cloneRoot, snapshots) {
+            const nodes = [cloneRoot, ...cloneRoot.querySelectorAll('*')];
+            nodes.forEach((node, i) => {
+                const snap = snapshots[i];
+                if (!snap || node.nodeType !== 1) return;
+                FREEZE_PROPS.forEach(p => {
+                    const val = snap[p];
+                    if (val && val !== 'auto' && val !== 'normal') node.style[p] = val;
+                });
+            });
+        }
+
+        // Render the currently active template at high resolution (2x the 1080x1350 native
+        // design size) so cropping into larger export sizes like 1200x1200 doesn't upscale/blur.
         async function renderMasterCanvas() {
             const banner = document.getElementById(`banner-${currentTemplate}`);
             await waitForImages(banner);
+            const snapshots = freezeComputedStyles(banner);
             return html2canvas(banner, {
-                scale: 1080 / banner.offsetWidth,
+                scale: (1080 * 2) / banner.offsetWidth,
                 useCORS: true,
                 logging: false,
-                backgroundColor: null
+                backgroundColor: null,
+                onclone: (clonedDoc, clonedBanner) => applyFrozenStyles(clonedBanner, snapshots)
             });
         }
 
@@ -1584,7 +1628,20 @@ Yerevan, Oct 17 2026</h2>
             return Array.from(document.querySelectorAll('.size-checkbox:checked')).map(cb => cb.value);
         }
 
-        // Download the active template in all selected sizes — one PNG file per size
+        function toggleAllSizes(checked) {
+            document.querySelectorAll('.size-checkbox').forEach(cb => { cb.checked = checked; });
+        }
+
+        document.querySelectorAll('.size-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const all = document.querySelectorAll('.size-checkbox');
+                const checkedCount = document.querySelectorAll('.size-checkbox:checked').length;
+                document.getElementById('selectAllSizes').checked = checkedCount === all.length;
+            });
+        });
+
+        // Download the active template in all selected sizes: a single PNG if only one size
+        // is selected, otherwise a single zip archive containing one PNG per size.
         async function downloadSelectedSizes() {
             const selected = getSelectedSizes();
             if (selected.length === 0) {
@@ -1594,17 +1651,30 @@ Yerevan, Oct 17 2026</h2>
 
             try {
                 const masterCanvas = await renderMasterCanvas();
-                const stamp = Date.now();
 
-                for (let i = 0; i < selected.length; i++) {
-                    const { w, h, label } = EXPORT_SIZES[selected[i]];
+                if (selected.length === 1) {
+                    const { w, h, label } = EXPORT_SIZES[selected[0]];
                     const canvas = coverCropToSize(masterCanvas, w, h);
                     const link = document.createElement('a');
                     link.href = canvas.toDataURL('image/png');
-                    link.download = `banner-${currentTemplate}-${label}-${stamp}.png`;
+                    link.download = `banner-${currentTemplate}-${label}-${Date.now()}.png`;
                     link.click();
-                    if (i < selected.length - 1) await new Promise(r => setTimeout(r, 300));
+                    return;
                 }
+
+                const zip = new JSZip();
+                for (const key of selected) {
+                    const { w, h, label } = EXPORT_SIZES[key];
+                    const canvas = coverCropToSize(masterCanvas, w, h);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const base64Data = dataUrl.split(',')[1];
+                    zip.file(`banner-${currentTemplate}-${label}.png`, base64Data, { base64: true });
+                }
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `banners-${currentTemplate}-${Date.now()}.zip`;
+                link.click();
             } catch (e) {
                 console.error('Error downloading banner:', e);
                 alert('Ошибка при скачивании. Попробуйте снова.');
@@ -1752,11 +1822,13 @@ Yerevan, Oct 17 2026</h2>
             const banner = document.getElementById(`banner-${currentTemplate}`);
             try {
                 await waitForImages(banner);
+                const snapshots = freezeComputedStyles(banner);
                 const canvas = await html2canvas(banner, {
                     scale: 2,
                     useCORS: true,
                     logging: false,
-                    backgroundColor: null
+                    backgroundColor: null,
+                    onclone: (clonedDoc, clonedBanner) => applyFrozenStyles(clonedBanner, snapshots)
                 });
                 savedBanners.push({
                     id: `saved-${++savedCounter}`,
