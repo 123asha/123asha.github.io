@@ -1558,9 +1558,9 @@ Yerevan, Oct 17 2026</h2>
         });
 
         // Available export sizes: key -> {w, h, label}
-        // Exported files are rendered at 1.5x the nominal size shown in the UI (labels stay
-        // as the standard platform dimensions; actual pixel output is sharper/larger).
-        const EXPORT_SCALE = 1.5;
+        // Exported files are rendered at 2x the nominal size shown in the UI (labels and
+        // filenames stay as the standard platform dimensions; actual pixel output is doubled).
+        const EXPORT_SCALE = 2;
 
         // 1200x628 is landscape while the source design is portrait (1080x1350) — cropping it
         // the same way as the other (portrait/square) sizes would zoom in so far that the
@@ -1611,19 +1611,41 @@ Yerevan, Oct 17 2026</h2>
             });
         }
 
-        // Render the currently active template at high resolution (3x the 1080x1350 native
-        // design size) so cropping into the 1.5x-scaled export sizes never upscales/blurs.
+        // Empty upload areas show a dashed "Логотип партнёра"/"Фото" hint in the editor;
+        // it's UI affordance, not artwork, so it must never appear in an exported file.
+        function hideEditorPlaceholders(root) {
+            root.querySelectorAll('.media-placeholder').forEach(el => { el.style.display = 'none'; });
+        }
+
+        // Shared html2canvas capture. Passing explicit window dimensions matters: without them
+        // html2canvas lays the clone out against the live browser viewport, and any part of the
+        // banner beyond that width gets clipped — that's what cut the logos off in exports.
+        function captureBanner(banner, { scale, width, height, backgroundColor = null }) {
+            const snapshots = freezeComputedStyles(banner);
+            return html2canvas(banner, {
+                scale,
+                width,
+                height,
+                windowWidth: width || banner.offsetWidth,
+                windowHeight: height || banner.offsetHeight,
+                scrollX: 0,
+                scrollY: 0,
+                useCORS: true,
+                logging: false,
+                backgroundColor,
+                onclone: (clonedDoc, clonedBanner) => {
+                    applyFrozenStyles(clonedBanner, snapshots);
+                    hideEditorPlaceholders(clonedBanner);
+                }
+            });
+        }
+
+        // Render the currently active template at high resolution (4x the 1080x1350 native
+        // design size) so cropping into the 2x-scaled export sizes never upscales/blurs.
         async function renderMasterCanvas() {
             const banner = document.getElementById(`banner-${currentTemplate}`);
             await waitForImages(banner);
-            const snapshots = freezeComputedStyles(banner);
-            return html2canvas(banner, {
-                scale: (1080 * 3) / banner.offsetWidth,
-                useCORS: true,
-                logging: false,
-                backgroundColor: null,
-                onclone: (clonedDoc, clonedBanner) => applyFrozenStyles(clonedBanner, snapshots)
-            });
+            return captureBanner(banner, { scale: (1080 * 4) / banner.offsetWidth });
         }
 
         // Crop/scale the master canvas to a target size (like background-size: cover)
@@ -1664,20 +1686,11 @@ Yerevan, Oct 17 2026</h2>
             populateLandscape(content);
             const banner = document.getElementById('landscapeBanner');
             await waitForImages(banner);
-            const snapshots = freezeComputedStyles(banner);
-            return html2canvas(banner, {
-                scale: 2,
+            return captureBanner(banner, {
+                scale: 3,
                 width: 1920,
                 height: 1080,
-                // Without an explicit window size, html2canvas lays the (off-screen, left:-10000px)
-                // 1920px-wide banner out against the actual browser viewport, which is narrower —
-                // that's what was clipping the right-hand logo/content. Match it to the banner.
-                windowWidth: 1920,
-                windowHeight: 1080,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#000000',
-                onclone: (clonedDoc, clonedBanner) => applyFrozenStyles(clonedBanner, snapshots)
+                backgroundColor: '#000000'
             });
         }
 
@@ -1879,14 +1892,7 @@ Yerevan, Oct 17 2026</h2>
             const banner = document.getElementById(`banner-${currentTemplate}`);
             try {
                 await waitForImages(banner);
-                const snapshots = freezeComputedStyles(banner);
-                const canvas = await html2canvas(banner, {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                    backgroundColor: null,
-                    onclone: (clonedDoc, clonedBanner) => applyFrozenStyles(clonedBanner, snapshots)
-                });
+                const canvas = await captureBanner(banner, { scale: 2 });
                 savedBanners.push({
                     id: `saved-${++savedCounter}`,
                     template: currentTemplate,
