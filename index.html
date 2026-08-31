@@ -214,6 +214,46 @@
             line-height: 1;
         }
 
+        .size-group-label {
+            font-size: clamp(0.65rem, 1.1vw, 0.75rem);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin: clamp(0.6rem, 1.2vw, 0.75rem) 0 clamp(0.3rem, 0.6vw, 0.4rem);
+        }
+
+        .size-group-label:first-child {
+            margin-top: 0;
+        }
+
+        .size-options {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.35rem, 0.7vw, 0.5rem);
+        }
+
+        .size-option {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.4rem, 0.8vw, 0.6rem);
+            padding: clamp(0.4rem, 0.9vw, 0.6rem) clamp(0.55rem, 1vw, 0.7rem);
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: clamp(5px, 1vw, 6px);
+            cursor: pointer;
+            font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+            color: #ddd;
+        }
+
+        .size-option:hover {
+            border-color: #fc4c0f;
+        }
+
+        .size-option input {
+            width: auto;
+            accent-color: #fc4c0f;
+        }
+
         /* Saved banners (batch download) */
         .saved-section {
             margin-top: clamp(1.5rem, 3vw, 2rem);
@@ -1160,9 +1200,26 @@ Yerevan, Oct 17 2026</textarea>
                 </div>
 
                 <div class="control-section">
+                    <label class="control-label">Размеры для экспорта</label>
+                    <div class="size-group-label">Meta</div>
+                    <div class="size-options">
+                        <label class="size-option"><input type="checkbox" class="size-checkbox" value="1080x1350" checked> 1080 × 1350</label>
+                        <label class="size-option"><input type="checkbox" class="size-checkbox" value="1080x1920"> 1080 × 1920</label>
+                        <label class="size-option"><input type="checkbox" class="size-checkbox" value="1080x1080-meta"> 1080 × 1080</label>
+                        <label class="size-option"><input type="checkbox" class="size-checkbox" value="1200x628"> 1200 × 628</label>
+                    </div>
+                    <div class="size-group-label">LinkedIn</div>
+                    <div class="size-options">
+                        <label class="size-option"><input type="checkbox" class="size-checkbox" value="1200x1200"> 1200 × 1200</label>
+                        <label class="size-option"><input type="checkbox" class="size-checkbox" value="1080x1080-li"> 1080 × 1080</label>
+                        <label class="size-option"><input type="checkbox" class="size-checkbox" value="720x900"> 720 × 900</label>
+                    </div>
+                </div>
+
+                <div class="control-section">
                     <label class="control-label">Действия</label>
                     <div class="button-group">
-                        <button onclick="downloadSingle()">Скачать баннер</button>
+                        <button onclick="downloadSelectedSizes()">Скачать баннер</button>
                         <button class="btn-secondary" onclick="resetForm()">Сброс</button>
                         <button class="btn-add" onclick="saveCurrentBanner()" title="Сохранить для пакетного скачивания">+</button>
                     </div>
@@ -1485,20 +1542,81 @@ Yerevan, Oct 17 2026</h2>
             reader.readAsDataURL(file);
         });
 
-        // Download single banner (whichever template is active)
-        async function downloadSingle() {
+        // Available export sizes: key -> {w, h, label}
+        const EXPORT_SIZES = {
+            '1080x1350': { w: 1080, h: 1350, label: 'meta-1080x1350' },
+            '1080x1920': { w: 1080, h: 1920, label: 'meta-1080x1920' },
+            '1080x1080-meta': { w: 1080, h: 1080, label: 'meta-1080x1080' },
+            '1200x628': { w: 1200, h: 628, label: 'meta-1200x628' },
+            '1200x1200': { w: 1200, h: 1200, label: 'linkedin-1200x1200' },
+            '1080x1080-li': { w: 1080, h: 1080, label: 'linkedin-1080x1080' },
+            '720x900': { w: 720, h: 900, label: 'linkedin-720x900' }
+        };
+
+        // Render the currently active template at full native resolution (1080x1350)
+        async function renderMasterCanvas() {
             const banner = document.getElementById(`banner-${currentTemplate}`);
+            await waitForImages(banner);
+            return html2canvas(banner, {
+                scale: 1080 / banner.offsetWidth,
+                useCORS: true,
+                logging: false,
+                backgroundColor: null
+            });
+        }
+
+        // Crop/scale the master canvas to a target size (like background-size: cover)
+        function coverCropToSize(masterCanvas, targetW, targetH) {
+            const c = document.createElement('canvas');
+            c.width = targetW;
+            c.height = targetH;
+            const ctx = c.getContext('2d');
+            const scale = Math.max(targetW / masterCanvas.width, targetH / masterCanvas.height);
+            const sw = targetW / scale;
+            const sh = targetH / scale;
+            const sx = (masterCanvas.width - sw) / 2;
+            const sy = (masterCanvas.height - sh) / 2;
+            ctx.drawImage(masterCanvas, sx, sy, sw, sh, 0, 0, targetW, targetH);
+            return c;
+        }
+
+        function getSelectedSizes() {
+            return Array.from(document.querySelectorAll('.size-checkbox:checked')).map(cb => cb.value);
+        }
+
+        // Download the active template in all selected sizes (single PNG, or zip if multiple)
+        async function downloadSelectedSizes() {
+            const selected = getSelectedSizes();
+            if (selected.length === 0) {
+                alert('Выберите хотя бы один размер');
+                return;
+            }
+
             try {
-                await waitForImages(banner);
-                const canvas = await html2canvas(banner, {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                    backgroundColor: null
-                });
+                const masterCanvas = await renderMasterCanvas();
+
+                if (selected.length === 1) {
+                    const { w, h, label } = EXPORT_SIZES[selected[0]];
+                    const canvas = coverCropToSize(masterCanvas, w, h);
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = `banner-${currentTemplate}-${label}-${Date.now()}.png`;
+                    link.click();
+                    return;
+                }
+
+                const zip = new JSZip();
+                for (const key of selected) {
+                    const { w, h, label } = EXPORT_SIZES[key];
+                    const canvas = coverCropToSize(masterCanvas, w, h);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const base64Data = dataUrl.split(',')[1];
+                    zip.file(`banner-${currentTemplate}-${label}.png`, base64Data, { base64: true });
+                }
+                const blob = await zip.generateAsync({ type: 'blob' });
                 const link = document.createElement('a');
-                link.href = canvas.toDataURL('image/png');
-                link.download = `banner-${currentTemplate}-${Date.now()}.png`;
+                link.href = URL.createObjectURL(blob);
+                link.download = `banners-${currentTemplate}-${Date.now()}.zip`;
                 link.click();
             } catch (e) {
                 console.error('Error downloading banner:', e);
