@@ -697,14 +697,14 @@
             z-index: 10;
             width: 88.7037cqw;
             text-align: center;
-            font-size: 7.4074cqw;
+            font-size: 6.2963cqw;
             font-weight: 500;
             line-height: 1.11;
             color: #f3eee6;
-            letter-spacing: -0.1481cqw;
+            letter-spacing: -0.126cqw;
             word-break: break-word;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -789,11 +789,11 @@
             z-index: 10;
             width: 90cqw;
             text-align: center;
-            font-size: 9.2593cqw;
+            font-size: 7.8704cqw;
             font-weight: 500;
             line-height: 1.05;
             color: #f3eee6;
-            letter-spacing: -0.1852cqw;
+            letter-spacing: -0.1574cqw;
             word-break: break-word;
             white-space: pre-line;
             display: -webkit-box;
@@ -863,15 +863,15 @@
             z-index: 10;
             width: 90cqw;
             text-align: center;
-            font-size: 9.2593cqw;
+            font-size: 7.8704cqw;
             font-weight: 500;
             line-height: 1.05;
             color: #f3eee6;
-            letter-spacing: -0.1852cqw;
+            letter-spacing: -0.1574cqw;
             word-break: break-word;
             white-space: pre-line;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -1584,7 +1584,7 @@ Yerevan, Oct 17 2026</h2>
             return Array.from(document.querySelectorAll('.size-checkbox:checked')).map(cb => cb.value);
         }
 
-        // Download the active template in all selected sizes (single PNG, or zip if multiple)
+        // Download the active template in all selected sizes — one PNG file per size
         async function downloadSelectedSizes() {
             const selected = getSelectedSizes();
             if (selected.length === 0) {
@@ -1594,30 +1594,17 @@ Yerevan, Oct 17 2026</h2>
 
             try {
                 const masterCanvas = await renderMasterCanvas();
+                const stamp = Date.now();
 
-                if (selected.length === 1) {
-                    const { w, h, label } = EXPORT_SIZES[selected[0]];
+                for (let i = 0; i < selected.length; i++) {
+                    const { w, h, label } = EXPORT_SIZES[selected[i]];
                     const canvas = coverCropToSize(masterCanvas, w, h);
                     const link = document.createElement('a');
                     link.href = canvas.toDataURL('image/png');
-                    link.download = `banner-${currentTemplate}-${label}-${Date.now()}.png`;
+                    link.download = `banner-${currentTemplate}-${label}-${stamp}.png`;
                     link.click();
-                    return;
+                    if (i < selected.length - 1) await new Promise(r => setTimeout(r, 300));
                 }
-
-                const zip = new JSZip();
-                for (const key of selected) {
-                    const { w, h, label } = EXPORT_SIZES[key];
-                    const canvas = coverCropToSize(masterCanvas, w, h);
-                    const dataUrl = canvas.toDataURL('image/png');
-                    const base64Data = dataUrl.split(',')[1];
-                    zip.file(`banner-${currentTemplate}-${label}.png`, base64Data, { base64: true });
-                }
-                const blob = await zip.generateAsync({ type: 'blob' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `banners-${currentTemplate}-${Date.now()}.zip`;
-                link.click();
             } catch (e) {
                 console.error('Error downloading banner:', e);
                 alert('Ошибка при скачивании. Попробуйте снова.');
