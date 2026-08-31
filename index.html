@@ -1617,11 +1617,67 @@ Yerevan, Oct 17 2026</h2>
             root.querySelectorAll('.media-placeholder').forEach(el => { el.style.display = 'none'; });
         }
 
-        // Shared html2canvas capture. Passing explicit window dimensions matters: without them
-        // html2canvas lays the clone out against the live browser viewport, and any part of the
-        // banner beyond that width gets clipped — that's what cut the logos off in exports.
-        function captureBanner(banner, { scale, width, height, backgroundColor = null }) {
+        // html2canvas 1.4.1 paints an <img> holding an SVG at the file's intrinsic size and
+        // clips it to the element box instead of scaling it down — the logo lockup (intrinsic
+        // 199x56, displayed ~109x31) came out zoomed and cut off at roughly "★ AI S". Working
+        // around it by rasterizing each SVG to a PNG at the exact pixel size it will occupy in
+        // the capture, then swapping that PNG into the clone.
+        const svgRasterCache = new Map();
+
+        function rasterizeSvg(src, pxW, pxH) {
+            const key = `${src}|${pxW}x${pxH}`;
+            if (svgRasterCache.has(key)) return svgRasterCache.get(key);
+            const promise = new Promise((resolve, reject) => {
+                const probe = new Image();
+                probe.crossOrigin = 'anonymous';
+                probe.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = pxW;
+                    c.height = pxH;
+                    c.getContext('2d').drawImage(probe, 0, 0, pxW, pxH);
+                    resolve(c.toDataURL('image/png'));
+                };
+                probe.onerror = reject;
+                probe.src = src;
+            });
+            svgRasterCache.set(key, promise);
+            return promise;
+        }
+
+        // Rasterize every SVG <img> under `root` at `scale`x its displayed size, returning a
+        // src -> pngDataUrl map to apply to the clone.
+        async function rasterizeSvgImages(root, scale) {
+            const svgImgs = Array.from(root.querySelectorAll('img'))
+                .filter(img => /\.svg(\?|$)/i.test(img.src) || img.src.startsWith('data:image/svg'));
+            const map = new Map();
+            await Promise.all(svgImgs.map(async img => {
+                const r = img.getBoundingClientRect();
+                if (!r.width || !r.height) return;
+                const pxW = Math.max(1, Math.round(r.width * scale));
+                const pxH = Math.max(1, Math.round(r.height * scale));
+                try {
+                    map.set(img.src, await rasterizeSvg(img.src, pxW, pxH));
+                } catch (e) {
+                    console.warn('Could not rasterize SVG for export:', img.src, e);
+                }
+            }));
+            return map;
+        }
+
+        function applySvgRasters(cloneRoot, map) {
+            cloneRoot.querySelectorAll('img').forEach(img => {
+                const png = map.get(img.src);
+                if (png) img.src = png;
+            });
+        }
+
+        // Shared html2canvas capture. Passing explicit window dimensions matters too: without
+        // them html2canvas lays the clone out against the live browser viewport, and anything
+        // wider than that viewport gets clipped.
+        async function captureBanner(banner, { scale, width, height, backgroundColor = null }) {
             const snapshots = freezeComputedStyles(banner);
+            // Rasterize at 2x the final device pixels so the PNG stays crisp after scaling.
+            const svgRasters = await rasterizeSvgImages(banner, scale * 2);
             return html2canvas(banner, {
                 scale,
                 width,
@@ -1636,6 +1692,7 @@ Yerevan, Oct 17 2026</h2>
                 onclone: (clonedDoc, clonedBanner) => {
                     applyFrozenStyles(clonedBanner, snapshots);
                     hideEditorPlaceholders(clonedBanner);
+                    applySvgRasters(clonedBanner, svgRasters);
                 }
             });
         }
