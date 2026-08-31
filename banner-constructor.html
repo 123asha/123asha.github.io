@@ -914,11 +914,14 @@
             font-family: 'Noto Sans Armenian', sans-serif;
         }
 
+        /* Plain gradient only — the per-template decorative background art (corner frame
+           brackets etc.) is composed for the 1080x1350 portrait canvas; stretched to cover
+           this 1920x1080 frame via background-size:cover it lands mid-canvas and overlaps
+           the text, so the landscape layout never uses it. */
         .landscape-bg {
             position: absolute;
             inset: 0;
-            background-size: cover;
-            background-position: center;
+            background: radial-gradient(ellipse 900px 700px at 50% 115%, rgba(252, 76, 15, 0.55), rgba(252, 76, 15, 0) 70%), #050505;
         }
 
         .landscape-logos {
@@ -1001,21 +1004,27 @@
             text-overflow: ellipsis;
         }
 
+        /* Bottom-anchored, off flex flow so it doesn't get vertically centered with the text;
+           uses background-image (not <img object-fit>) because html2canvas 1.4.1 doesn't
+           honor object-fit and stretches/distorts <img> tags instead of cropping them. */
         .landscape-media {
+            position: absolute;
+            right: 100px;
+            bottom: 0;
             width: 560px;
-            height: 560px;
-            flex: none;
-            border-radius: 24px;
+            height: 900px;
+            border-radius: 24px 24px 0 0;
             overflow: hidden;
+            background-repeat: no-repeat;
+        }
+
+        .landscape-media.contain-fit {
+            bottom: 60px;
+            height: 560px;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .landscape-media img {
-            width: 100%;
-            height: 100%;
-            display: block;
+            background-color: transparent;
         }
 
         .landscape-banner.no-media .landscape-content {
@@ -1655,13 +1664,20 @@ Yerevan, Oct 17 2026</h2>
             populateLandscape(content);
             const banner = document.getElementById('landscapeBanner');
             await waitForImages(banner);
+            const snapshots = freezeComputedStyles(banner);
             return html2canvas(banner, {
                 scale: 2,
                 width: 1920,
                 height: 1080,
+                // Without an explicit window size, html2canvas lays the (off-screen, left:-10000px)
+                // 1920px-wide banner out against the actual browser viewport, which is narrower —
+                // that's what was clipping the right-hand logo/content. Match it to the banner.
+                windowWidth: 1920,
+                windowHeight: 1080,
                 useCORS: true,
                 logging: false,
-                backgroundColor: '#000000'
+                backgroundColor: '#000000',
+                onclone: (clonedDoc, clonedBanner) => applyFrozenStyles(clonedBanner, snapshots)
             });
         }
 
@@ -1786,8 +1802,6 @@ Yerevan, Oct 17 2026</h2>
         }
 
         function populateLandscape(content) {
-            document.getElementById('landscapeBg').style.backgroundImage = content.bg ? `url(${content.bg})` : '';
-
             const badgeEl = document.getElementById('landscapeBadge');
             badgeEl.textContent = content.badge || '';
             badgeEl.style.display = content.badge ? 'inline-block' : 'none';
@@ -1807,11 +1821,16 @@ Yerevan, Oct 17 2026</h2>
             const mediaBox = document.getElementById('landscapeMedia');
             const banner = document.getElementById('landscapeBanner');
             if (content.media) {
-                mediaBox.innerHTML = `<img src="${content.media}" style="object-fit:${content.mediaFit || 'contain'};width:100%;height:100%;">`;
-                mediaBox.style.display = 'flex';
+                const isContain = content.mediaFit === 'contain';
+                mediaBox.style.backgroundImage = `url(${content.media})`;
+                mediaBox.style.backgroundSize = isContain ? 'contain' : 'cover';
+                mediaBox.style.backgroundPosition = isContain ? 'center center' : 'center bottom';
+                mediaBox.classList.toggle('contain-fit', isContain);
+                mediaBox.style.display = 'block';
                 banner.classList.remove('no-media');
             } else {
-                mediaBox.innerHTML = '';
+                mediaBox.style.backgroundImage = '';
+                mediaBox.classList.remove('contain-fit');
                 mediaBox.style.display = 'none';
                 banner.classList.add('no-media');
             }
