@@ -1535,7 +1535,9 @@ Yerevan, Oct 17 2026</h2>
         });
 
         function selectIcon(file, el) {
-            document.getElementById('t4PreviewIcon').src = file;
+            // assetSrc() hands back the pre-rasterized PNG so the banner never holds a raw SVG
+            // (see the SVG pre-rasterization block for why that matters on export).
+            document.getElementById('t4PreviewIcon').src = assetSrc(file);
             document.querySelectorAll('.icon-swatch').forEach(s => s.classList.remove('active'));
             el.classList.add('active');
         }
@@ -1617,67 +1619,72 @@ Yerevan, Oct 17 2026</h2>
             root.querySelectorAll('.media-placeholder').forEach(el => { el.style.display = 'none'; });
         }
 
+        // ===== SVG → PNG pre-rasterization =====
         // html2canvas 1.4.1 paints an <img> holding an SVG at the file's intrinsic size and
         // clips it to the element box instead of scaling it down — the logo lockup (intrinsic
-        // 199x56, displayed ~109x31) came out zoomed and cut off at roughly "★ AI S". Working
-        // around it by rasterizing each SVG to a PNG at the exact pixel size it will occupy in
-        // the capture, then swapping that PNG into the clone.
-        const svgRasterCache = new Map();
+        // 199x56, displayed ~109x31) exported as a zoomed crop reading roughly "★ AI S".
+        // Raster <img>s scale correctly, so every SVG asset is converted to a high-resolution
+        // PNG once at startup and used everywhere from then on. Doing it upfront (rather than
+        // swapping sources per capture) also avoids the follow-on bug where a src assigned
+        // mid-capture hadn't decoded yet and the logos came out blank.
+        const SVG_ASSETS = ['aisapienslogo.svg', 'executivelogo.svg', 'ic1.svg', 'ic2.svg', 'ic3.svg', 'ic4.svg'];
 
-        function rasterizeSvg(src, pxW, pxH) {
-            const key = `${src}|${pxW}x${pxH}`;
-            if (svgRasterCache.has(key)) return svgRasterCache.get(key);
-            const promise = new Promise((resolve, reject) => {
+        // Longest side of the generated PNG. The largest any of these ever gets rendered is the
+        // teaser icon in the master canvas (~940px), so 1800px leaves a wide quality margin
+        // without holding needlessly large bitmaps in memory.
+        const SVG_RASTER_LONG_SIDE = 1800;
+
+        const svgRasters = new Map();   // 'ic1.svg' -> PNG data URL
+
+        function rasterizeSvgAsset(src) {
+            return new Promise((resolve, reject) => {
                 const probe = new Image();
-                probe.crossOrigin = 'anonymous';
                 probe.onload = () => {
+                    const iw = probe.naturalWidth || 1;
+                    const ih = probe.naturalHeight || 1;
+                    const factor = SVG_RASTER_LONG_SIDE / Math.max(iw, ih);
                     const c = document.createElement('canvas');
-                    c.width = pxW;
-                    c.height = pxH;
-                    c.getContext('2d').drawImage(probe, 0, 0, pxW, pxH);
+                    c.width = Math.max(1, Math.round(iw * factor));
+                    c.height = Math.max(1, Math.round(ih * factor));
+                    const ctx = c.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(probe, 0, 0, c.width, c.height);
                     resolve(c.toDataURL('image/png'));
                 };
                 probe.onerror = reject;
                 probe.src = src;
             });
-            svgRasterCache.set(key, promise);
-            return promise;
         }
 
-        // Rasterize every SVG <img> under `root` at `scale`x its displayed size, returning a
-        // src -> pngDataUrl map to apply to the clone.
-        async function rasterizeSvgImages(root, scale) {
-            const svgImgs = Array.from(root.querySelectorAll('img'))
-                .filter(img => /\.svg(\?|$)/i.test(img.src) || img.src.startsWith('data:image/svg'));
-            const map = new Map();
-            await Promise.all(svgImgs.map(async img => {
-                const r = img.getBoundingClientRect();
-                if (!r.width || !r.height) return;
-                const pxW = Math.max(1, Math.round(r.width * scale));
-                const pxH = Math.max(1, Math.round(r.height * scale));
-                try {
-                    map.set(img.src, await rasterizeSvg(img.src, pxW, pxH));
-                } catch (e) {
-                    console.warn('Could not rasterize SVG for export:', img.src, e);
-                }
-            }));
-            return map;
+        // Resolves an asset name to its PNG raster once ready, falling back to the original SVG.
+        function assetSrc(file) {
+            return svgRasters.get(file) || file;
         }
 
-        function applySvgRasters(cloneRoot, map) {
-            cloneRoot.querySelectorAll('img').forEach(img => {
-                const png = map.get(img.src);
-                if (png) img.src = png;
+        // Only artwork that can end up in an export needs the raster; the icon-picker
+        // thumbnails are editor chrome and stay on the lightweight SVGs.
+        function applyRastersToDom() {
+            document.querySelectorAll('.banner img, .landscape-banner img').forEach(img => {
+                const file = img.getAttribute('src');
+                if (file && svgRasters.has(file)) img.src = svgRasters.get(file);
             });
         }
+
+        const svgRastersReady = Promise.all(SVG_ASSETS.map(async file => {
+            try {
+                svgRasters.set(file, await rasterizeSvgAsset(file));
+            } catch (e) {
+                console.warn('Could not pre-rasterize', file, e);
+            }
+        })).then(applyRastersToDom);
 
         // Shared html2canvas capture. Passing explicit window dimensions matters too: without
         // them html2canvas lays the clone out against the live browser viewport, and anything
         // wider than that viewport gets clipped.
         async function captureBanner(banner, { scale, width, height, backgroundColor = null }) {
+            await svgRastersReady;
             const snapshots = freezeComputedStyles(banner);
-            // Rasterize at 2x the final device pixels so the PNG stays crisp after scaling.
-            const svgRasters = await rasterizeSvgImages(banner, scale * 2);
             return html2canvas(banner, {
                 scale,
                 width,
@@ -1692,7 +1699,6 @@ Yerevan, Oct 17 2026</h2>
                 onclone: (clonedDoc, clonedBanner) => {
                     applyFrozenStyles(clonedBanner, snapshots);
                     hideEditorPlaceholders(clonedBanner);
-                    applySvgRasters(clonedBanner, svgRasters);
                 }
             });
         }
