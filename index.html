@@ -919,12 +919,16 @@
            1080x1350 canvas, so cover-filling this 1920x1080 frame drops the bracket rails right
            where the text sits. populateLandscape() therefore lays a darkening scrim over it,
            heaviest on the text side; the grid stays visible, the brackets stop competing. */
+        /* Anchored to the bottom on purpose: these backgrounds carry their texture — the glow,
+           the light rays, the denser grid — in the lower half, and a centred cover-crop of the
+           tall source into this 16:9 frame kept only the empty middle band, which is why the
+           landscape exports looked like flat black. */
         .landscape-bg {
             position: absolute;
             inset: 0;
             background-color: #050505;
             background-repeat: no-repeat;
-            background-position: center;
+            background-position: center bottom;
             background-size: cover;
         }
 
@@ -1734,9 +1738,11 @@ Yerevan, Oct 17 2026</h2>
             const dw = Math.round(mw * scale);
             const dh = Math.round(mh * scale);
             const dx = Math.round((targetW - dw) / 2);
-            const dy = Math.round((targetH - dh) / 2);
+            // Vertical leftover goes entirely above the design rather than being split top and
+            // bottom: the design's bottom edge carries the glow, so a bottom margin read as a
+            // black stub under it, while its top edge is flat black and extends invisibly.
+            const dy = targetH - dh;
             const rightW = targetW - dx - dw;
-            const bottomH = targetH - dy - dh;
 
             if (dx > 0) {
                 ctx.drawImage(masterCanvas, 0, 0, 1, mh, 0, dy, dx, dh);
@@ -1744,12 +1750,9 @@ Yerevan, Oct 17 2026</h2>
             }
             if (dy > 0) {
                 ctx.drawImage(masterCanvas, 0, 0, mw, 1, dx, 0, dw, dy);
-                ctx.drawImage(masterCanvas, 0, mh - 1, mw, 1, dx, dy + dh, dw, bottomH);
                 if (dx > 0) {
                     ctx.drawImage(masterCanvas, 0, 0, 1, 1, 0, 0, dx, dy);
                     ctx.drawImage(masterCanvas, mw - 1, 0, 1, 1, dx + dw, 0, rightW, dy);
-                    ctx.drawImage(masterCanvas, 0, mh - 1, 1, 1, 0, dy + dh, dx, bottomH);
-                    ctx.drawImage(masterCanvas, mw - 1, mh - 1, 1, 1, dx + dw, dy + dh, rightW, bottomH);
                 }
             }
 
@@ -1912,7 +1915,7 @@ Yerevan, Oct 17 2026</h2>
         // while the corner-bracket rails stop reading through the text (heaviest on the left,
         // which is where the text column sits in this layout).
         const LANDSCAPE_BG_SCRIM =
-            'linear-gradient(90deg, rgba(5,5,5,0.88) 0%, rgba(5,5,5,0.72) 40%, rgba(5,5,5,0.45) 100%)';
+            'linear-gradient(90deg, rgba(5,5,5,0.86) 0%, rgba(5,5,5,0.66) 40%, rgba(5,5,5,0.3) 100%)';
 
         function populateLandscape(content) {
             const bgEl = document.getElementById('landscapeBg');
