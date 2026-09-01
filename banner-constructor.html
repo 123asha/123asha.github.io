@@ -1084,6 +1084,12 @@
                 <!-- Template 1: Акция -->
                 <div class="control-panel active" id="panel-promo">
                     <div class="control-section">
+                        <label class="control-label">Текст плашки</label>
+                        <input type="text" id="badge" value="Coming soon — Yerevan, Oct 17 2026" maxlength="60">
+                        <span class="control-hint">Оставьте поле пустым — плашка не появится на баннере</span>
+                    </div>
+
+                    <div class="control-section">
                         <label class="control-label">Заголовок 1</label>
                         <input type="text" id="title" value="AI Sapiens Vol.2" maxlength="60">
                     </div>
@@ -1264,7 +1270,7 @@ Yerevan, Oct 17 2026</textarea>
                             </div>
                             <div class="banner-text-block">
                                 <div class="banner-text-wrapper">
-                                    <div class="banner-badge">Coming soon — Yerevan, Oct 17 2026</div>
+                                    <div class="banner-badge" id="previewBadge">Coming soon — Yerevan, Oct 17 2026</div>
                                     <div>
                                         <h2 class="banner-title" id="previewTitle">AI Sapiens Vol.2</h2>
                                         <p class="banner-subtitle" id="previewSubtitle">EARLY BIRD OFFER</p>
@@ -1378,6 +1384,7 @@ Yerevan, Oct 17 2026</h2>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <script>
+        const DEFAULT_BADGE = 'Coming soon — Yerevan, Oct 17 2026';
         const DEFAULT_TITLE = 'AI Sapiens Vol.2';
         const DEFAULT_SUBTITLE = 'EARLY BIRD OFFER';
         const DEFAULT_DESCRIPTION = 'Link Company-ն բիզնես ավտոմատացման ոլորտի առաջատար ընկերություններից է Հայաստանում։';
@@ -1459,6 +1466,14 @@ Yerevan, Oct 17 2026</h2>
         });
 
         // ===== Template 1 real-time preview updates =====
+        // Unlike the other fields this one has no fallback text: an empty badge means the
+        // banner simply doesn't carry one.
+        document.getElementById('badge').addEventListener('input', function() {
+            const el = document.getElementById('previewBadge');
+            el.textContent = this.value;
+            el.style.display = this.value.trim() ? '' : 'none';
+        });
+
         document.getElementById('title').addEventListener('input', function() {
             document.getElementById('previewTitle').textContent = this.value || DEFAULT_TITLE;
         });
@@ -1942,7 +1957,7 @@ Yerevan, Oct 17 2026</h2>
                     return {
                         bg: getBgUrl('bannerBgImage-promo'),
                         title: `${text('previewTitle')}\n${text('previewSubtitle')}`,
-                        badge: document.querySelector('#banner-promo .banner-badge').textContent.trim(),
+                        badge: text('previewBadge'),
                         description: text('previewDescription'),
                         cta: text('previewCta'),
                         media: null
@@ -2153,6 +2168,7 @@ Yerevan, Oct 17 2026</h2>
 
         // Reset form
         function resetForm() {
+            document.getElementById('badge').value = DEFAULT_BADGE;
             document.getElementById('title').value = DEFAULT_TITLE;
             document.getElementById('subtitle').value = DEFAULT_SUBTITLE;
             document.getElementById('description').value = DEFAULT_DESCRIPTION;
@@ -2163,6 +2179,9 @@ Yerevan, Oct 17 2026</h2>
             document.getElementById('bannerBgImage-teaser').style.backgroundImage = `url(${currentBgByTemplate.teaser})`;
             if (SHARED_BG_TEMPLATES.includes(currentTemplate)) refreshBgSelect(currentTemplate);
 
+            const badgeEl = document.getElementById('previewBadge');
+            badgeEl.textContent = DEFAULT_BADGE;
+            badgeEl.style.display = '';
             document.getElementById('previewTitle').textContent = DEFAULT_TITLE;
             document.getElementById('previewSubtitle').textContent = DEFAULT_SUBTITLE;
             document.getElementById('previewDescription').textContent = DEFAULT_DESCRIPTION;
