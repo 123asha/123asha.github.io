@@ -881,14 +881,16 @@
             overflow: hidden;
         }
 
-        /* Photo area — left149 top413 w781 h942 (/1080*100), anchored to bottom like the Figma cutout */
+        /* Photo area — Figma spec is left149 top413 w781 h942 (/1080*100); scaled to 92% of that
+           and kept standing on the same bottom edge, which drops the head far enough to stop it
+           crowding the title above. */
         .t5-photo-area {
             position: absolute;
-            left: 13.7963cqw;
-            top: 38.2407cqw;
+            left: 16.7315cqw;
+            top: 45.2222cqw;
             z-index: 5;
-            width: 72.3148cqw;
-            height: 87.2222cqw;
+            width: 66.5296cqw;
+            height: 80.2444cqw;
             overflow: hidden;
         }
 
@@ -1595,6 +1597,15 @@ Yerevan, Oct 17 2026</h2>
         // their content layer is pinned to the bottom instead.
         const BOTTOM_BLEED_TEMPLATES = ['speaker'];
 
+        // Per-template overrides for one specific export size, keyed "<template>|<sizeKey>".
+        // scale > 1 blows the content layer up past the frame width, trimming a little off the
+        // sides (the design keeps its text and logos well inside that margin). For the speaker
+        // in 9:16 that both enlarges the figure and — since this template is bottom-pinned —
+        // carries the title and description further up the frame.
+        const CONTENT_TWEAKS = {
+            'speaker|1080x1920': { scale: 1.15 }
+        };
+
         // 1200x628 is landscape while the source design is portrait (1080x1350) — cropping it
         // the same way as the other (portrait/square) sizes would zoom in so far that the
         // title/description/logos fall entirely outside the crop. Route it through the
@@ -1782,7 +1793,7 @@ Yerevan, Oct 17 2026</h2>
         // with the rendered content laid over it. Keeping the two apart is what lets a portrait
         // design fill a square or a story frame without either cropping the content (which ate
         // the logo lockup and the CTA) or padding it (which left visible bands top and bottom).
-        async function composeExport(contentCanvas, bgUrl, targetW, targetH, nudgeY = 0) {
+        async function composeExport(contentCanvas, bgUrl, targetW, targetH, { nudgeY = 0, contentScale = 1 } = {}) {
             const c = document.createElement('canvas');
             c.width = targetW;
             c.height = targetH;
@@ -1805,7 +1816,7 @@ Yerevan, Oct 17 2026</h2>
                 }
             }
 
-            const fit = Math.min(targetW / contentCanvas.width, targetH / contentCanvas.height);
+            const fit = Math.min(targetW / contentCanvas.width, targetH / contentCanvas.height) * contentScale;
             const dw = Math.round(contentCanvas.width * fit);
             const dh = Math.round(contentCanvas.height * fit);
             // Centred in the frame: the composition is the subject, so it should sit in the
@@ -1911,13 +1922,21 @@ Yerevan, Oct 17 2026</h2>
                 if (needsLandscape) landscapeCanvas = await renderLandscapeMasterCanvas();
 
                 const bgUrl = getBgUrl(`bannerBgImage-${currentTemplate}`);
-                const canvasFor = (spec) => spec.landscape
-                    ? fitToSizeWithEdgeExtend(landscapeCanvas, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE)
-                    : composeExport(contentCanvas, bgUrl, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE, spec.nudgeY || 0);
+                const canvasFor = (key) => {
+                    const spec = EXPORT_SIZES[key];
+                    if (spec.landscape) {
+                        return fitToSizeWithEdgeExtend(landscapeCanvas, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE);
+                    }
+                    const tweak = CONTENT_TWEAKS[`${currentTemplate}|${key}`] || {};
+                    return composeExport(contentCanvas, bgUrl, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE, {
+                        nudgeY: spec.nudgeY || 0,
+                        contentScale: tweak.scale || 1
+                    });
+                };
 
                 if (selected.length === 1) {
                     const spec = EXPORT_SIZES[selected[0]];
-                    const canvas = await canvasFor(spec);
+                    const canvas = await canvasFor(selected[0]);
                     const link = document.createElement('a');
                     link.href = canvas.toDataURL('image/png');
                     link.download = `banner-${currentTemplate}-${spec.label}-${Date.now()}.png`;
@@ -1928,7 +1947,7 @@ Yerevan, Oct 17 2026</h2>
                 const zip = new JSZip();
                 for (const key of selected) {
                     const spec = EXPORT_SIZES[key];
-                    const canvas = await canvasFor(spec);
+                    const canvas = await canvasFor(key);
                     const dataUrl = canvas.toDataURL('image/png');
                     const base64Data = dataUrl.split(',')[1];
                     zip.file(`banner-${currentTemplate}-${spec.label}.png`, base64Data, { base64: true });
