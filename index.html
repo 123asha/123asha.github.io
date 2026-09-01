@@ -914,14 +914,18 @@
             font-family: 'Noto Sans Armenian', sans-serif;
         }
 
-        /* Plain gradient only — the per-template decorative background art (corner frame
-           brackets etc.) is composed for the 1080x1350 portrait canvas; stretched to cover
-           this 1920x1080 frame via background-size:cover it lands mid-canvas and overlaps
-           the text, so the landscape layout never uses it. */
+        /* The template's own background art (grid, starfield, corner frame brackets) is kept
+           here — it's what makes the banner recognisable — but it's composed for the portrait
+           1080x1350 canvas, so cover-filling this 1920x1080 frame drops the bracket rails right
+           where the text sits. populateLandscape() therefore lays a darkening scrim over it,
+           heaviest on the text side; the grid stays visible, the brackets stop competing. */
         .landscape-bg {
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse 900px 700px at 50% 115%, rgba(252, 76, 15, 0.55), rgba(252, 76, 15, 0) 70%), #050505;
+            background-color: #050505;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
         }
 
         .landscape-logos {
@@ -1711,18 +1715,45 @@ Yerevan, Oct 17 2026</h2>
             return captureBanner(banner, { scale: (1080 * 4) / banner.offsetWidth });
         }
 
-        // Crop/scale the master canvas to a target size (like background-size: cover)
-        function coverCropToSize(masterCanvas, targetW, targetH) {
+        // Fit the whole design into the target size (like background-size: contain) instead of
+        // cropping it. A cover-crop of the 1080x1350 portrait design into a square cuts 135px
+        // off the top and bottom — exactly where the logo lockup and the CTA live — so squares
+        // came out with no logos. Contain keeps every element; the leftover margin is filled by
+        // stretching the design's own edge pixels, so the background gradient just continues
+        // and there are no visible bars.
+        function fitToSizeWithEdgeExtend(masterCanvas, targetW, targetH) {
             const c = document.createElement('canvas');
             c.width = targetW;
             c.height = targetH;
             const ctx = c.getContext('2d');
-            const scale = Math.max(targetW / masterCanvas.width, targetH / masterCanvas.height);
-            const sw = targetW / scale;
-            const sh = targetH / scale;
-            const sx = (masterCanvas.width - sw) / 2;
-            const sy = (masterCanvas.height - sh) / 2;
-            ctx.drawImage(masterCanvas, sx, sy, sw, sh, 0, 0, targetW, targetH);
+            ctx.imageSmoothingQuality = 'high';
+
+            const mw = masterCanvas.width;
+            const mh = masterCanvas.height;
+            const scale = Math.min(targetW / mw, targetH / mh);
+            const dw = Math.round(mw * scale);
+            const dh = Math.round(mh * scale);
+            const dx = Math.round((targetW - dw) / 2);
+            const dy = Math.round((targetH - dh) / 2);
+            const rightW = targetW - dx - dw;
+            const bottomH = targetH - dy - dh;
+
+            if (dx > 0) {
+                ctx.drawImage(masterCanvas, 0, 0, 1, mh, 0, dy, dx, dh);
+                ctx.drawImage(masterCanvas, mw - 1, 0, 1, mh, dx + dw, dy, rightW, dh);
+            }
+            if (dy > 0) {
+                ctx.drawImage(masterCanvas, 0, 0, mw, 1, dx, 0, dw, dy);
+                ctx.drawImage(masterCanvas, 0, mh - 1, mw, 1, dx, dy + dh, dw, bottomH);
+                if (dx > 0) {
+                    ctx.drawImage(masterCanvas, 0, 0, 1, 1, 0, 0, dx, dy);
+                    ctx.drawImage(masterCanvas, mw - 1, 0, 1, 1, dx + dw, 0, rightW, dy);
+                    ctx.drawImage(masterCanvas, 0, mh - 1, 1, 1, 0, dy + dh, dx, bottomH);
+                    ctx.drawImage(masterCanvas, mw - 1, mh - 1, 1, 1, dx + dw, dy + dh, rightW, bottomH);
+                }
+            }
+
+            ctx.drawImage(masterCanvas, 0, 0, mw, mh, dx, dy, dw, dh);
             return c;
         }
 
@@ -1776,7 +1807,7 @@ Yerevan, Oct 17 2026</h2>
                 if (needsPortrait) masterCanvas = await renderMasterCanvas();
                 if (needsLandscape) landscapeCanvas = await renderLandscapeMasterCanvas();
 
-                const canvasFor = (spec) => coverCropToSize(
+                const canvasFor = (spec) => fitToSizeWithEdgeExtend(
                     spec.landscape ? landscapeCanvas : masterCanvas,
                     spec.w * EXPORT_SCALE,
                     spec.h * EXPORT_SCALE
@@ -1877,7 +1908,18 @@ Yerevan, Oct 17 2026</h2>
             }
         }
 
+        // Scrim laid over the template's background art so the grid/starfield stays visible
+        // while the corner-bracket rails stop reading through the text (heaviest on the left,
+        // which is where the text column sits in this layout).
+        const LANDSCAPE_BG_SCRIM =
+            'linear-gradient(90deg, rgba(5,5,5,0.88) 0%, rgba(5,5,5,0.72) 40%, rgba(5,5,5,0.45) 100%)';
+
         function populateLandscape(content) {
+            const bgEl = document.getElementById('landscapeBg');
+            bgEl.style.backgroundImage = content.bg
+                ? `${LANDSCAPE_BG_SCRIM}, url(${content.bg})`
+                : 'radial-gradient(ellipse 900px 700px at 50% 115%, rgba(252, 76, 15, 0.55), rgba(252, 76, 15, 0) 70%)';
+
             const badgeEl = document.getElementById('landscapeBadge');
             badgeEl.textContent = content.badge || '';
             badgeEl.style.display = content.badge ? 'inline-block' : 'none';
