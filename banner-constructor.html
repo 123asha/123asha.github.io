@@ -1587,13 +1587,25 @@ Yerevan, Oct 17 2026</h2>
         // filenames stay as the standard platform dimensions; actual pixel output is doubled).
         const EXPORT_SCALE = 2;
 
+        // Width of the native design canvas — the coordinate space nudgeY offsets are given in.
+        const DESIGN_WIDTH = 1080;
+
+        // Templates whose artwork runs off the bottom of the design (the speaker cut-out stands
+        // on the bottom edge). Centring those in a taller frame leaves the figure floating, so
+        // their content layer is pinned to the bottom instead.
+        const BOTTOM_BLEED_TEMPLATES = ['speaker'];
+
         // 1200x628 is landscape while the source design is portrait (1080x1350) — cropping it
         // the same way as the other (portrait/square) sizes would zoom in so far that the
         // title/description/logos fall entirely outside the crop. Route it through the
         // existing 16:9 landscape layout (text left, media right) instead, via `landscape: true`.
         const EXPORT_SIZES = {
             '1080x1350': { w: 1080, h: 1350, label: 'meta-1080x1350' },
-            '1080x1920': { w: 1080, h: 1920, label: 'meta-1080x1920' },
+            // nudgeY: vertical offset for the content layer, in design pixels (1080-wide
+            // design space), negative = up. The 9:16 frame stretches the backdrop far more
+            // than the other sizes, which walks its top bracket rail down into the logo
+            // lockup; lifting the content clears it.
+            '1080x1920': { w: 1080, h: 1920, label: 'meta-1080x1920', nudgeY: -25 },
             '1080x1080-meta': { w: 1080, h: 1080, label: 'meta-1080x1080' },
             '1200x628': { w: 1200, h: 628, label: 'meta-1200x628', landscape: true },
             '1200x1200': { w: 1200, h: 1200, label: 'linkedin-1200x1200' },
@@ -1770,7 +1782,7 @@ Yerevan, Oct 17 2026</h2>
         // with the rendered content laid over it. Keeping the two apart is what lets a portrait
         // design fill a square or a story frame without either cropping the content (which ate
         // the logo lockup and the CTA) or padding it (which left visible bands top and bottom).
-        async function composeExport(contentCanvas, bgUrl, targetW, targetH) {
+        async function composeExport(contentCanvas, bgUrl, targetW, targetH, nudgeY = 0) {
             const c = document.createElement('canvas');
             c.width = targetW;
             c.height = targetH;
@@ -1797,14 +1809,13 @@ Yerevan, Oct 17 2026</h2>
             const dw = Math.round(contentCanvas.width * fit);
             const dh = Math.round(contentCanvas.height * fit);
             // Centred in the frame: the composition is the subject, so it should sit in the
-            // middle of whatever aspect it's exported at rather than hugging an edge.
-            ctx.drawImage(
-                contentCanvas,
-                Math.round((targetW - dw) / 2),
-                Math.round((targetH - dh) / 2),
-                dw,
-                dh
-            );
+            // middle of whatever aspect it's exported at rather than hugging an edge. nudgeY
+            // is given in design pixels, so scale it the way the content itself is scaled.
+            const bottomBleed = BOTTOM_BLEED_TEMPLATES.includes(currentTemplate);
+            const offsetY = bottomBleed
+                ? targetH - dh
+                : Math.round((targetH - dh) / 2) + Math.round(nudgeY * (dw / DESIGN_WIDTH));
+            ctx.drawImage(contentCanvas, Math.round((targetW - dw) / 2), offsetY, dw, dh);
             return c;
         }
 
@@ -1902,7 +1913,7 @@ Yerevan, Oct 17 2026</h2>
                 const bgUrl = getBgUrl(`bannerBgImage-${currentTemplate}`);
                 const canvasFor = (spec) => spec.landscape
                     ? fitToSizeWithEdgeExtend(landscapeCanvas, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE)
-                    : composeExport(contentCanvas, bgUrl, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE);
+                    : composeExport(contentCanvas, bgUrl, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE, spec.nudgeY || 0);
 
                 if (selected.length === 1) {
                     const spec = EXPORT_SIZES[selected[0]];
@@ -2030,11 +2041,13 @@ Yerevan, Oct 17 2026</h2>
             const mediaBox = document.getElementById('landscapeMedia');
             const banner = document.getElementById('landscapeBanner');
             if (content.media) {
-                const isContain = content.mediaFit === 'contain';
+                const isLogoOrIcon = content.mediaFit === 'contain';
                 mediaBox.style.backgroundImage = `url(${content.media})`;
-                mediaBox.style.backgroundSize = isContain ? 'contain' : 'cover';
-                mediaBox.style.backgroundPosition = isContain ? 'center center' : 'center bottom';
-                mediaBox.classList.toggle('contain-fit', isContain);
+                // Always contain, never cover: a cover fit into this box cut the speaker photo
+                // off mid-torso. Photos sit on the bottom edge, logos and icons stay centred.
+                mediaBox.style.backgroundSize = 'contain';
+                mediaBox.style.backgroundPosition = isLogoOrIcon ? 'center center' : 'center bottom';
+                mediaBox.classList.toggle('contain-fit', isLogoOrIcon);
                 mediaBox.style.display = 'block';
                 banner.classList.remove('no-media');
             } else {
