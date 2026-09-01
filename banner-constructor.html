@@ -1781,7 +1781,15 @@ Yerevan, Oct 17 2026</h2>
             const fit = Math.min(targetW / contentCanvas.width, targetH / contentCanvas.height);
             const dw = Math.round(contentCanvas.width * fit);
             const dh = Math.round(contentCanvas.height * fit);
-            ctx.drawImage(contentCanvas, Math.round((targetW - dw) / 2), targetH - dh, dw, dh);
+            // Centred in the frame: the composition is the subject, so it should sit in the
+            // middle of whatever aspect it's exported at rather than hugging an edge.
+            ctx.drawImage(
+                contentCanvas,
+                Math.round((targetW - dw) / 2),
+                Math.round((targetH - dh) / 2),
+                dw,
+                dh
+            );
             return c;
         }
 
