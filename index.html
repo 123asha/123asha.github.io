@@ -919,17 +919,17 @@
            1080x1350 canvas, so cover-filling this 1920x1080 frame drops the bracket rails right
            where the text sits. populateLandscape() therefore lays a darkening scrim over it,
            heaviest on the text side; the grid stays visible, the brackets stop competing. */
-        /* Anchored to the bottom on purpose: these backgrounds carry their texture — the glow,
-           the light rays, the denser grid — in the lower half, and a centred cover-crop of the
-           tall source into this 16:9 frame kept only the empty middle band, which is why the
-           landscape exports looked like flat black. */
+        /* Stretched, not cropped: a cover-crop of the tall source into this 16:9 frame kept only
+           the empty middle band (landscape exports looked flat black), and anchoring it to the
+           bottom clipped the corner brackets off the top. Stretching keeps the whole
+           composition — brackets centred, glow present — across the full frame. */
         .landscape-bg {
             position: absolute;
             inset: 0;
             background-color: #050505;
             background-repeat: no-repeat;
-            background-position: center bottom;
-            background-size: cover;
+            background-position: center;
+            background-size: 100% 100%;
         }
 
         .landscape-logos {
@@ -1690,7 +1690,7 @@ Yerevan, Oct 17 2026</h2>
         // Shared html2canvas capture. Passing explicit window dimensions matters too: without
         // them html2canvas lays the clone out against the live browser viewport, and anything
         // wider than that viewport gets clipped.
-        async function captureBanner(banner, { scale, width, height, backgroundColor = null }) {
+        async function captureBanner(banner, { scale, width, height, backgroundColor = null, hideBackground = false }) {
             await svgRastersReady;
             const snapshots = freezeComputedStyles(banner);
             return html2canvas(banner, {
@@ -1707,16 +1707,82 @@ Yerevan, Oct 17 2026</h2>
                 onclone: (clonedDoc, clonedBanner) => {
                     applyFrozenStyles(clonedBanner, snapshots);
                     hideEditorPlaceholders(clonedBanner);
+                    if (hideBackground) {
+                        clonedBanner.querySelectorAll('.banner-bg-image')
+                            .forEach(el => { el.style.display = 'none'; });
+                    }
                 }
             });
         }
 
         // Render the currently active template at high resolution (4x the 1080x1350 native
-        // design size) so cropping into the 2x-scaled export sizes never upscales/blurs.
+        // design size) so downstream scaling never upscales/blurs. The backdrop art is left out
+        // here: exports paint it separately so it can bleed to every edge of the target size
+        // (see composeExport), instead of being letterboxed along with the content.
+        async function renderContentCanvas() {
+            const banner = document.getElementById(`banner-${currentTemplate}`);
+            await waitForImages(banner);
+            return captureBanner(banner, {
+                scale: (1080 * 4) / banner.offsetWidth,
+                hideBackground: true
+            });
+        }
+
+        // Full-resolution render including the backdrop — used by the saved-banners grid, which
+        // stores plain 1080x1350 previews.
         async function renderMasterCanvas() {
             const banner = document.getElementById(`banner-${currentTemplate}`);
             await waitForImages(banner);
             return captureBanner(banner, { scale: (1080 * 4) / banner.offsetWidth });
+        }
+
+        const imageCache = new Map();
+
+        function loadImage(src) {
+            if (imageCache.has(src)) return imageCache.get(src);
+            const p = new Promise((resolve, reject) => {
+                const im = new Image();
+                im.crossOrigin = 'anonymous';
+                im.onload = () => resolve(im);
+                im.onerror = reject;
+                im.src = src;
+            });
+            imageCache.set(src, p);
+            return p;
+        }
+
+        // Build one export: the template's backdrop art painted edge to edge at the target size,
+        // with the rendered content laid over it. Keeping the two apart is what lets a portrait
+        // design fill a square or a story frame without either cropping the content (which ate
+        // the logo lockup and the CTA) or padding it (which left visible bands top and bottom).
+        async function composeExport(contentCanvas, bgUrl, targetW, targetH) {
+            const c = document.createElement('canvas');
+            c.width = targetW;
+            c.height = targetH;
+            const ctx = c.getContext('2d');
+            ctx.imageSmoothingQuality = 'high';
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, targetW, targetH);
+
+            if (bgUrl) {
+                try {
+                    const bg = await loadImage(bgUrl);
+                    // Stretched to the frame rather than cover-cropped. The artwork is a
+                    // symmetric composition — corner brackets near the edges, glow up the
+                    // middle — so any crop either clipped the brackets or dropped the glow,
+                    // and fitting it left bands. Stretching keeps the brackets centred and
+                    // the backdrop edge to edge; it's soft gradient art, so it takes it.
+                    ctx.drawImage(bg, 0, 0, targetW, targetH);
+                } catch (e) {
+                    console.warn('Could not draw export background:', bgUrl, e);
+                }
+            }
+
+            const fit = Math.min(targetW / contentCanvas.width, targetH / contentCanvas.height);
+            const dw = Math.round(contentCanvas.width * fit);
+            const dh = Math.round(contentCanvas.height * fit);
+            ctx.drawImage(contentCanvas, Math.round((targetW - dw) / 2), targetH - dh, dw, dh);
+            return c;
         }
 
         // Fit the whole design into the target size (like background-size: contain) instead of
@@ -1791,10 +1857,10 @@ Yerevan, Oct 17 2026</h2>
             });
         }
 
-        // Download the active template in all selected sizes: a single PNG if only one size
-        // is selected, otherwise a single zip archive containing one PNG per size. Portrait/
-        // square sizes crop from the native 1080x1350 design; the landscape 1200x628 size
-        // crops from the dedicated 16:9 layout instead (see EXPORT_SIZES).
+        // Download the active template in all selected sizes: a single PNG if only one size is
+        // selected, otherwise a single zip archive containing one PNG per size. Portrait and
+        // square sizes are composed from the backdrop plus the content layer (composeExport);
+        // the landscape 1200x628 size comes from the dedicated 16:9 layout (see EXPORT_SIZES).
         async function downloadSelectedSizes() {
             const selected = getSelectedSizes();
             if (selected.length === 0) {
@@ -1803,22 +1869,21 @@ Yerevan, Oct 17 2026</h2>
             }
 
             try {
-                let masterCanvas = null;
+                let contentCanvas = null;
                 let landscapeCanvas = null;
                 const needsPortrait = selected.some(key => !EXPORT_SIZES[key].landscape);
                 const needsLandscape = selected.some(key => EXPORT_SIZES[key].landscape);
-                if (needsPortrait) masterCanvas = await renderMasterCanvas();
+                if (needsPortrait) contentCanvas = await renderContentCanvas();
                 if (needsLandscape) landscapeCanvas = await renderLandscapeMasterCanvas();
 
-                const canvasFor = (spec) => fitToSizeWithEdgeExtend(
-                    spec.landscape ? landscapeCanvas : masterCanvas,
-                    spec.w * EXPORT_SCALE,
-                    spec.h * EXPORT_SCALE
-                );
+                const bgUrl = getBgUrl(`bannerBgImage-${currentTemplate}`);
+                const canvasFor = (spec) => spec.landscape
+                    ? fitToSizeWithEdgeExtend(landscapeCanvas, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE)
+                    : composeExport(contentCanvas, bgUrl, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE);
 
                 if (selected.length === 1) {
                     const spec = EXPORT_SIZES[selected[0]];
-                    const canvas = canvasFor(spec);
+                    const canvas = await canvasFor(spec);
                     const link = document.createElement('a');
                     link.href = canvas.toDataURL('image/png');
                     link.download = `banner-${currentTemplate}-${spec.label}-${Date.now()}.png`;
@@ -1829,7 +1894,7 @@ Yerevan, Oct 17 2026</h2>
                 const zip = new JSZip();
                 for (const key of selected) {
                     const spec = EXPORT_SIZES[key];
-                    const canvas = canvasFor(spec);
+                    const canvas = await canvasFor(spec);
                     const dataUrl = canvas.toDataURL('image/png');
                     const base64Data = dataUrl.split(',')[1];
                     zip.file(`banner-${currentTemplate}-${spec.label}.png`, base64Data, { base64: true });
