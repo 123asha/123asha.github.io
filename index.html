@@ -1021,15 +1021,17 @@
             position: absolute;
             right: 100px;
             bottom: 0;
-            width: 560px;
-            height: 900px;
+            width: 760px;
+            height: 1010px;
             border-radius: 24px 24px 0 0;
             overflow: hidden;
             background-repeat: no-repeat;
         }
 
+        /* Logos and icons keep the smaller, centred box — only photographs take the enlarged one. */
         .landscape-media.contain-fit {
             bottom: 60px;
+            width: 560px;
             height: 560px;
             display: flex;
             align-items: center;
@@ -1746,8 +1748,11 @@ Yerevan, Oct 17 2026</h2>
                     applyFrozenStyles(clonedBanner, snapshots);
                     hideEditorPlaceholders(clonedBanner);
                     if (hideBackground) {
-                        clonedBanner.querySelectorAll('.banner-bg-image')
+                        clonedBanner.querySelectorAll('.banner-bg-image, .landscape-bg')
                             .forEach(el => { el.style.display = 'none'; });
+                        // The landscape frame paints its own solid black, which would sit on
+                        // top of the backdrop composited underneath this layer.
+                        clonedBanner.style.background = 'transparent';
                     }
                 }
             });
@@ -1793,7 +1798,7 @@ Yerevan, Oct 17 2026</h2>
         // with the rendered content laid over it. Keeping the two apart is what lets a portrait
         // design fill a square or a story frame without either cropping the content (which ate
         // the logo lockup and the CTA) or padding it (which left visible bands top and bottom).
-        async function composeExport(contentCanvas, bgUrl, targetW, targetH, { nudgeY = 0, contentScale = 1 } = {}) {
+        async function composeExport(contentCanvas, bgUrl, targetW, targetH, { nudgeY = 0, contentScale = 1, scrim = false } = {}) {
             const c = document.createElement('canvas');
             c.width = targetW;
             c.height = targetH;
@@ -1814,6 +1819,17 @@ Yerevan, Oct 17 2026</h2>
                 } catch (e) {
                     console.warn('Could not draw export background:', bgUrl, e);
                 }
+            }
+
+            if (scrim) {
+                // Landscape only: its text sits directly on the backdrop rather than inside the
+                // bracket frame, so it needs the artwork knocked back on the text side.
+                const g = ctx.createLinearGradient(0, 0, targetW, 0);
+                g.addColorStop(0, 'rgba(5, 5, 5, 0.7)');
+                g.addColorStop(0.4, 'rgba(5, 5, 5, 0.45)');
+                g.addColorStop(1, 'rgba(5, 5, 5, 0.12)');
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, targetW, targetH);
             }
 
             const fit = Math.min(targetW / contentCanvas.width, targetH / contentCanvas.height) * contentScale;
@@ -1889,6 +1905,10 @@ Yerevan, Oct 17 2026</h2>
 
         // Render the hidden 16:9 landscape template (text left, media right) populated with
         // the current template's content, at high resolution for downstream cropping.
+        // Content only — the backdrop is composited underneath on canvas (composeExport), the
+        // same way the portrait sizes do it. Leaving it to CSS here didn't survive the capture:
+        // html2canvas ignores background-size: 100% 100%, so the bracket frame came out at its
+        // own small scale in the middle of the frame instead of spanning the full height.
         async function renderLandscapeMasterCanvas() {
             const content = getTemplateContentForLandscape(currentTemplate);
             populateLandscape(content);
@@ -1898,7 +1918,7 @@ Yerevan, Oct 17 2026</h2>
                 scale: 3,
                 width: 1920,
                 height: 1080,
-                backgroundColor: '#000000'
+                hideBackground: true
             });
         }
 
@@ -1925,7 +1945,7 @@ Yerevan, Oct 17 2026</h2>
                 const canvasFor = (key) => {
                     const spec = EXPORT_SIZES[key];
                     if (spec.landscape) {
-                        return fitToSizeWithEdgeExtend(landscapeCanvas, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE);
+                        return composeExport(landscapeCanvas, bgUrl, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE, { scrim: true });
                     }
                     const tweak = CONTENT_TWEAKS[`${currentTemplate}|${key}`] || {};
                     return composeExport(contentCanvas, bgUrl, spec.w * EXPORT_SCALE, spec.h * EXPORT_SCALE, {
